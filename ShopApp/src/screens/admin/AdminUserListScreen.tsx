@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, SafeAreaView,
-    TouchableOpacity, Modal, TextInput, Alert, Platform, ActivityIndicator
+    TouchableOpacity, Modal, TextInput, Alert, Platform, ActivityIndicator, StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUsers } from '../../context/UserContext';
@@ -119,13 +119,13 @@ export const AdminUserListScreen: React.FC = () => {
                             setShowResetModal(true);
                         }}
                     >
-                        <Ionicons name="key-outline" size={15} color="#64748B" />
+                        <Ionicons name="key-outline" size={15} color="rgba(255,255,255,0.6)" />
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.actionBtn, isAdminUser && styles.disabledBtn]}
                         onPress={() => !isAdminUser && handleDelete(item)}
                     >
-                        <Ionicons name="trash-outline" size={15} color={isAdminUser ? '#CBD5E1' : '#EF4444'} />
+                        <Ionicons name="trash-outline" size={15} color={isAdminUser ? 'rgba(255,255,255,0.15)' : '#FF453A'} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -134,6 +134,7 @@ export const AdminUserListScreen: React.FC = () => {
 
     return (
         <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="light-content" />
             {/* Header */}
             <View style={styles.pageHeader}>
                 <View>
@@ -170,7 +171,7 @@ export const AdminUserListScreen: React.FC = () => {
             {/* List */}
             {isLoading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator color="#16869C" />
+                    <ActivityIndicator color="#5EEAD4" />
                 </View>
             ) : (
                 <FlatList
@@ -244,26 +245,30 @@ export const AdminUserListScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F6F8F8',
+        backgroundColor: '#000',
     },
     pageHeader: {
         flexDirection: Platform.OS === 'web' ? 'row' : 'column',
         justifyContent: 'space-between',
         alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start',
-        padding: 24,
+        paddingHorizontal: 32,
+        paddingTop: 48,
+        paddingBottom: 24,
         gap: 16,
-        backgroundColor: '#F6F8F8',
+        backgroundColor: '#000',
     },
     pageTitle: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: '#0F172A',
-        letterSpacing: -1,
+        fontSize: 48,
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -1.5,
         marginBottom: 4,
     },
     pageSub: {
-        fontSize: 14,
-        color: '#64748B',
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.4)',
+        fontWeight: '600',
+        letterSpacing: 0.5,
     },
     headerActions: {
         flexDirection: 'row',
@@ -274,60 +279,60 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.05)',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 6,
-        paddingHorizontal: 12,
-        height: 40,
+        borderColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 100,
+        paddingHorizontal: 16,
+        height: 44,
         minWidth: 200,
     },
     searchInput: {
         flex: 1,
         fontSize: 14,
-        color: '#0F172A',
+        color: '#FFF',
     },
     dangerBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#FFF5F5',
+        backgroundColor: 'rgba(255,69,58,0.08)',
         borderWidth: 1,
-        borderColor: '#FEE2E2',
-        borderRadius: 6,
-        paddingHorizontal: 14,
-        height: 40,
+        borderColor: 'rgba(255,69,58,0.2)',
+        borderRadius: 100,
+        paddingHorizontal: 16,
+        height: 44,
     },
     dangerBtnText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#EF4444',
+        fontSize: 12,
+        fontWeight: '900',
+        color: '#FF453A',
+        letterSpacing: 0.5,
     },
     tableHeader: {
         flexDirection: 'row',
-        paddingHorizontal: 24,
-        paddingVertical: 10,
+        paddingHorizontal: 32,
+        paddingVertical: 12,
     },
     th: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#94A3B8',
-        letterSpacing: 0.8,
+        fontSize: 10,
+        fontWeight: '900',
+        color: 'rgba(255,255,255,0.3)',
+        letterSpacing: 1.5,
     },
     divider: {
         height: 1,
-        backgroundColor: '#E2E8F0',
-        marginHorizontal: 24,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        marginHorizontal: 32,
     },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 16,
+        paddingHorizontal: 32,
+        paddingVertical: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
-        backgroundColor: '#FFFFFF',
-        gap: 14,
+        borderBottomColor: 'rgba(255,255,255,0.04)',
+        gap: 16,
     },
     avatar: {
         width: 44,
@@ -352,45 +357,45 @@ const styles = StyleSheet.create({
     },
     userName: {
         fontSize: 14,
-        fontWeight: '700',
-        color: '#0F172A',
+        fontWeight: '800',
+        color: '#FFF',
     },
     adminBadge: {
-        backgroundColor: '#FEF3C7',
+        backgroundColor: 'rgba(94,234,212,0.1)',
         borderWidth: 1,
-        borderColor: '#FDE68A',
-        borderRadius: 4,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        borderColor: 'rgba(94,234,212,0.3)',
+        borderRadius: 100,
+        paddingHorizontal: 10,
+        paddingVertical: 3,
     },
     adminBadgeText: {
         fontSize: 9,
-        fontWeight: '800',
-        color: '#92400E',
-        letterSpacing: 0.5,
+        fontWeight: '900',
+        color: '#5EEAD4',
+        letterSpacing: 1,
     },
     userEmail: {
         fontSize: 13,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.4)',
     },
     userId: {
-        fontSize: 11,
-        color: '#94A3B8',
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.2)',
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
     actions: {
         flex: 2,
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        gap: 6,
+        gap: 8,
     },
     actionBtn: {
         width: 34,
         height: 34,
-        borderRadius: 6,
+        borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        backgroundColor: '#FFFFFF',
+        borderColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: 'rgba(255,255,255,0.03)',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -415,7 +420,7 @@ const styles = StyleSheet.create({
     // Modal
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.45)',
+        backgroundColor: 'rgba(0,0,0,0.85)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 24,
@@ -423,91 +428,79 @@ const styles = StyleSheet.create({
     modal: {
         width: '100%',
         maxWidth: 440,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
+        backgroundColor: '#111827',
+        borderRadius: 32,
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        padding: 24,
+        padding: 28,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: 'rgba(255,255,255,0.07)',
     },
     modalTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#0F172A',
-        letterSpacing: -0.3,
+        fontSize: 20,
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -0.5,
     },
     modalSub: {
         fontSize: 13,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.4)',
         marginTop: 2,
     },
     modalBody: {
-        padding: 24,
-        gap: 8,
+        padding: 28,
+        gap: 12,
     },
     inputLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#94A3B8',
-        letterSpacing: 1,
+        fontSize: 10,
+        fontWeight: '900',
+        color: 'rgba(255,255,255,0.4)',
+        letterSpacing: 2,
     },
     inputWrap: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 6,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        backgroundColor: '#F8FAFC',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: 'rgba(255,255,255,0.03)',
     },
-    inputError: {
-        borderColor: '#EF4444',
-    },
+    inputError: { borderColor: '#FF453A' },
     modalInput: {
         flex: 1,
         fontSize: 14,
-        color: '#0F172A',
+        color: '#FFF',
     },
-    errorText: {
-        fontSize: 12,
-        color: '#EF4444',
-        fontWeight: '500',
-    },
+    errorText: { fontSize: 12, color: '#FF453A', fontWeight: '600' },
     modalFooter: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        gap: 10,
-        padding: 24,
+        gap: 12,
+        padding: 28,
         paddingTop: 0,
     },
     cancelBtn: {
         paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingVertical: 14,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 6,
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 100,
     },
-    cancelBtnText: {
-        fontSize: 14,
-        color: '#334155',
-        fontWeight: '600',
-    },
+    cancelBtnText: { fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: '700' },
     confirmBtn: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        backgroundColor: '#0F172A',
-        borderRadius: 6,
+        paddingHorizontal: 28,
+        paddingVertical: 14,
+        backgroundColor: '#FFF',
+        borderRadius: 100,
     },
-    confirmBtnText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
+    confirmBtnText: { fontSize: 13, fontWeight: '900', color: '#000', letterSpacing: 0.5 },
 });

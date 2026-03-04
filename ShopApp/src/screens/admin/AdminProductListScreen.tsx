@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    TextInput, SafeAreaView, Image, Platform, Modal, Alert, ScrollView
+    TextInput, SafeAreaView, Image, Platform, Alert, StatusBar
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { useProduct } from '../../context/ProductContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Product } from '../../types';
+import { ShopifyTheme } from '../../theme/ShopifyTheme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AdminProductList'>;
 
@@ -25,18 +26,17 @@ export const AdminProductListScreen: React.FC<Props> = ({ navigation }) => {
 
     const handleDelete = (item: Product) => {
         Alert.alert(
-            'Lưu trữ công cụ',
+            'LƯU TRỮ CÔNG CỤ',
             `Bạn có chắc chắn muốn lưu trữ "${item.name}"? Nó sẽ không còn xuất hiện công khai trên cửa hàng.`,
             [
-                { text: 'Hủy', style: 'cancel' },
-                { text: 'Lưu trữ', style: 'destructive', onPress: () => deleteProduct(item.id) },
+                { text: 'HỦY', style: 'cancel' },
+                { text: 'LƯU TRỮ', style: 'destructive', onPress: () => deleteProduct(item.id) },
             ]
         );
     };
 
     const renderItem = ({ item }: { item: Product }) => (
         <View style={styles.row}>
-            {/* Thumbnail + name */}
             <View style={styles.colTool}>
                 <View style={styles.thumb}>
                     <Image source={{ uri: item.image }} style={styles.thumbImg} resizeMode="contain" />
@@ -47,89 +47,68 @@ export const AdminProductListScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
             </View>
 
-            {/* Price */}
             <View style={styles.colPrice}>
-                <Text style={styles.priceText}>${item.price.toFixed(2)}<Text style={styles.priceUnit}>/tháng</Text></Text>
+                <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
             </View>
 
-            {/* Tier */}
             <View style={styles.colTier}>
-                <View style={[styles.tierBadge, {
-                    backgroundColor: item.tier === 'Premium' ? '#FEF3C7' : item.tier === 'Pro' ? '#EFF6FF' : '#F0FDF4',
-                    borderColor: item.tier === 'Premium' ? '#FDE68A' : item.tier === 'Pro' ? '#BFDBFE' : '#BBF7D0',
-                }]}>
-                    <Text style={[styles.tierText, {
-                        color: item.tier === 'Premium' ? '#92400E' : item.tier === 'Pro' ? '#1E40AF' : '#15803D',
-                    }]}>{item.tier}</Text>
-                </View>
+                <Text style={styles.tierText}>{item.tier.toUpperCase()}</Text>
             </View>
 
-            {/* Status */}
-            <View style={styles.colStatus}>
-                <View style={styles.statusBadge}>
-                    <View style={styles.activeDot} />
-                    <Text style={styles.statusText}>Hoạt động</Text>
-                </View>
-            </View>
-
-            {/* Actions */}
             <View style={styles.colActions}>
                 <TouchableOpacity
                     style={styles.actionBtn}
                     onPress={() => navigation.navigate('ProductForm', { product: item })}
                 >
-                    <Ionicons name="pencil-outline" size={16} color="#64748B" />
+                    <Ionicons name="pencil" size={14} color="#FFF" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item)}>
-                    <Ionicons name="archive-outline" size={16} color="#64748B" />
+                <TouchableOpacity style={styles.actionBtnTrash} onPress={() => handleDelete(item)}>
+                    <Ionicons name="trash-outline" size={14} color="#FF453A" />
                 </TouchableOpacity>
             </View>
         </View>
     );
 
     const renderHeader = () => (
-        <View>
-            {/* Page header */}
-            <View style={styles.pageHeader}>
-                <View style={{ flex: 1 }}>
-                    <Text style={styles.pageTitle}>Quản lý Kho hàng</Text>
-                    <Text style={styles.pageSub}>Quản lý danh mục công cụ AI, điều chỉnh mô hình giá và kiểm soát cấp độ truy cập.</Text>
+        <View style={styles.header}>
+            <Text style={styles.chapterMarker}>CHAPTER XI · INVENTORY</Text>
+            <View style={styles.heroRow}>
+                <View>
+                    <Text style={styles.title}>Quản lý</Text>
+                    <Text style={styles.titleAccent}>Kho hàng.</Text>
                 </View>
-                <View style={styles.headerActions}>
-                    <View style={styles.searchBar}>
-                        <Ionicons name="search" size={16} color="#94A3B8" />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Tìm công cụ..."
-                            placeholderTextColor="#94A3B8"
-                            value={search}
-                            onChangeText={setSearch}
-                        />
-                    </View>
-                    <TouchableOpacity
-                        style={styles.addBtn}
-                        onPress={() => navigation.navigate('ProductForm', {})}
-                    >
-                        <Ionicons name="add" size={18} color="#FFFFFF" />
-                        <Text style={styles.addBtnText}>Thêm mới</Text>
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                    style={styles.addBtn}
+                    onPress={() => navigation.navigate('ProductForm', {})}
+                >
+                    <Ionicons name="add" size={20} color="#000" />
+                    <Text style={styles.addBtnText}>THÊM MỚI</Text>
+                </TouchableOpacity>
             </View>
 
-            {/* Table header */}
-            <View style={styles.tableHeader}>
-                <Text style={[styles.th, styles.colTool]}>CÔNG CỤ</Text>
-                <Text style={[styles.th, styles.colPrice]}>GIÁ</Text>
-                <Text style={[styles.th, styles.colTier]}>CẤP ĐỘ</Text>
-                <Text style={[styles.th, styles.colStatus]}>TRẠNG THÁI</Text>
-                <Text style={[styles.th, styles.colActions, { textAlign: 'right' }]}>THAO TÁC</Text>
+            <View style={styles.searchBar}>
+                <Ionicons name="search" size={16} color={ShopifyTheme.colors.textMuted} />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Tìm kiếm công cụ..."
+                    placeholderTextColor={ShopifyTheme.colors.textMuted}
+                    value={search}
+                    onChangeText={setSearch}
+                />
             </View>
-            <View style={styles.tableDivider} />
+
+            <View style={styles.tableHeader}>
+                <Text style={[styles.th, styles.colTool]}>DANH MỤC</Text>
+                <Text style={[styles.th, styles.colPrice]}>GIÁ</Text>
+                <Text style={[styles.th, styles.colTier]}>TẦNG</Text>
+                <Text style={[styles.th, styles.colActions, { textAlign: 'right' }]}>TD</Text>
+            </View>
         </View>
     );
 
     return (
         <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="light-content" />
             <FlatList
                 data={filtered}
                 keyExtractor={item => item.id.toString()}
@@ -141,8 +120,7 @@ export const AdminProductListScreen: React.FC<Props> = ({ navigation }) => {
                 onRefresh={fetchProducts}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Ionicons name="archive-outline" size={48} color="#CBD5E1" />
-                        <Text style={styles.emptyText}>Không có công cụ nào</Text>
+                        <Text style={styles.emptyText}>KHÔNG CÓ DỮ LIỆU</Text>
                     </View>
                 }
             />
@@ -153,205 +131,171 @@ export const AdminProductListScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F6F8F8',
+        backgroundColor: ShopifyTheme.colors.background,
     },
-    listContent: {
-        paddingBottom: 40,
+    header: {
+        paddingHorizontal: 32,
+        paddingTop: 40,
+        paddingBottom: 24,
     },
-    pageHeader: {
-        flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    chapterMarker: {
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 2,
+        marginBottom: 16,
+    },
+    heroRow: {
+        flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start',
-        padding: 24,
-        gap: 20,
-        backgroundColor: '#F6F8F8',
+        alignItems: 'flex-end',
+        marginBottom: 32,
     },
-    pageTitle: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: '#0F172A',
-        letterSpacing: -1,
-        marginBottom: 6,
+    title: {
+        fontSize: 48,
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -1.5,
     },
-    pageSub: {
-        fontSize: 14,
-        color: '#64748B',
-        maxWidth: 420,
-        lineHeight: 20,
+    titleAccent: {
+        fontSize: 48,
+        fontWeight: '900',
+        color: ShopifyTheme.colors.accent,
+        letterSpacing: -3,
+        marginTop: -10,
     },
-    headerActions: {
+    addBtn: {
+        backgroundColor: '#FFF',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 100,
+        gap: 8,
+    },
+    addBtnText: {
+        color: '#000',
+        fontWeight: '900',
+        fontSize: 12,
+        letterSpacing: 0.5,
     },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 100,
+        paddingHorizontal: 20,
+        height: 48,
+        marginBottom: 32,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 6,
-        paddingHorizontal: 14,
-        height: 40,
-        minWidth: 200,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     searchInput: {
         flex: 1,
-        fontSize: 14,
-        color: '#0F172A',
-    },
-    addBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: '#0F172A',
-        borderRadius: 6,
-        paddingHorizontal: 16,
-        height: 40,
-    },
-    addBtnText: {
-        color: '#FFFFFF',
-        fontWeight: '700',
+        marginLeft: 10,
+        color: '#FFF',
         fontSize: 14,
     },
-
-    // Table
     tableHeader: {
         flexDirection: 'row',
-        paddingHorizontal: 24,
-        paddingVertical: 10,
-        backgroundColor: '#F6F8F8',
-    },
-    tableDivider: {
-        height: 1,
-        backgroundColor: '#E2E8F0',
-        marginHorizontal: 24,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
     },
     th: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#94A3B8',
-        letterSpacing: 0.8,
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    listContent: {
+        paddingBottom: 40,
     },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 16,
+        paddingHorizontal: 32,
+        paddingVertical: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
-        backgroundColor: '#FFFFFF',
+        borderBottomColor: 'rgba(255,255,255,0.03)',
     },
     colTool: {
         flex: 5,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 14,
+        gap: 16,
     },
     thumb: {
-        width: 56,
-        height: 40,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 6,
+        width: 44,
+        height: 44,
+        backgroundColor: '#111827',
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     thumbImg: {
-        width: '80%',
-        height: '80%',
+        width: '70%',
+        height: '70%',
     },
     productName: {
+        color: '#FFF',
         fontSize: 14,
-        fontWeight: '700',
-        color: '#0F172A',
+        fontWeight: '800',
     },
     productId: {
-        fontSize: 11,
-        color: '#94A3B8',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 10,
         marginTop: 2,
     },
     colPrice: {
         flex: 2,
     },
     priceText: {
+        color: '#FFF',
         fontSize: 14,
-        fontWeight: '500',
-        color: '#334155',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    },
-    priceUnit: {
-        fontSize: 11,
-        color: '#94A3B8',
-        fontFamily: 'System',
+        fontWeight: '700',
     },
     colTier: {
         flex: 2,
     },
-    tierBadge: {
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        alignSelf: 'flex-start',
-    },
     tierText: {
+        color: ShopifyTheme.colors.accent,
         fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.3,
-    },
-    colStatus: {
-        flex: 2,
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: '#F0FDF4',
-        borderWidth: 1,
-        borderColor: '#DCFCE7',
-        borderRadius: 12,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        alignSelf: 'flex-start',
-    },
-    activeDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#16A34A',
-    },
-    statusText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: '#16A34A',
+        fontWeight: '900',
+        letterSpacing: 0.5,
     },
     colActions: {
         flex: 2,
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        gap: 4,
+        gap: 12,
     },
     actionBtn: {
-        width: 34,
-        height: 34,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        backgroundColor: '#FFFFFF',
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    actionBtnTrash: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255, 69, 58, 0.05)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     emptyState: {
         alignItems: 'center',
-        paddingVertical: 60,
-        gap: 12,
+        paddingTop: 80,
     },
     emptyText: {
-        fontSize: 16,
-        color: '#94A3B8',
-        fontWeight: '500',
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 2,
     },
 });

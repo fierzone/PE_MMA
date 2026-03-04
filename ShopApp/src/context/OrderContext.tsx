@@ -11,6 +11,8 @@ interface OrderContextType {
     fetchStats: (period?: '24h' | '7d' | '30d' | 'all') => Promise<void>;
     checkout: (items: CartItemDetailed[], total: number) => Promise<boolean>;
     getRevenueByPeriod: (period: 'day' | 'month' | 'year') => Promise<{ period: string; amount: number }[]>;
+    getTopSpenders: () => Promise<{ name: string; email: string; totalSpent: number; orderCount: number }[]>;
+    getActiveUsersCount: () => Promise<number>;
 }
 
 const OrderContext = createContext<OrderContextType | null>(null);
@@ -106,10 +108,37 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const getTopSpenders = async () => {
+        try {
+            return await db.getAllAsync<{ name: string; email: string; totalSpent: number; orderCount: number }>(`
+                SELECT u.fullName as name, u.email, SUM(o.totalAmount) as totalSpent, COUNT(o.id) as orderCount
+                FROM Users u
+                JOIN Orders o ON u.id = o.userId
+                GROUP BY u.id
+                ORDER BY totalSpent DESC
+                LIMIT 5
+            `);
+        } catch (e) {
+            return [];
+        }
+    };
+
+    const getActiveUsersCount = async () => {
+        try {
+            const result = await db.getFirstAsync<{ count: number }>("SELECT COUNT(DISTINCT userId) as count FROM Orders");
+            return result?.count ?? 0;
+        } catch (e) {
+            return 0;
+        }
+    };
+
     React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
     return (
-        <OrderContext.Provider value={{ orders, isLoading, stats, fetchOrders, fetchStats, checkout, getRevenueByPeriod }}>
+        <OrderContext.Provider value={{
+            orders, isLoading, stats, fetchOrders, fetchStats, checkout,
+            getRevenueByPeriod, getTopSpenders, getActiveUsersCount
+        }}>
             {children}
         </OrderContext.Provider>
     );

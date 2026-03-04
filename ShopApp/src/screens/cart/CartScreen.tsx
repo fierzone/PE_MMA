@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, SafeAreaView,
-    TouchableOpacity, Modal, Platform
+    TouchableOpacity, Modal, Platform, StatusBar
 } from 'react-native';
 import { useCart } from '../../context/CartContext';
 import { useOrder } from '../../context/OrderContext';
 import { CartItem } from '../../components/CartItem';
 import { Ionicons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { ShopifyTheme } from '../../theme/ShopifyTheme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export const CartScreen: React.FC = () => {
     const { cartItems, totalPrice, fetchCart, updateCartItemQuantity, removeFromCart, clearCart } = useCart();
@@ -26,8 +27,6 @@ export const CartScreen: React.FC = () => {
             const success = await checkout(cartItems, totalPrice);
             if (success) {
                 setShowSuccess(true);
-            } else {
-                Toast.show({ type: 'error', text1: 'Checkout failed', text2: 'Please try again.' });
             }
         } catch (e) {
             console.error(e);
@@ -38,28 +37,30 @@ export const CartScreen: React.FC = () => {
 
     const renderEmpty = () => (
         <View style={styles.emptyContainer}>
-            <Ionicons name="bag-outline" size={64} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>Giỏ hàng trống</Text>
-            <Text style={styles.emptyText}>Duyệt qua cửa hàng để thêm các công cụ vào bộ sưu tập của bạn.</Text>
+            <View style={styles.romanGroup}>
+                <Text style={styles.roman}>00</Text>
+            </View>
+            <Text style={styles.emptyTitle}>Lưu Trữ Rỗng.</Text>
+            <Text style={styles.emptyText}>Bắt đầu hành trình của bạn bằng cách thêm những công cụ AI tinh túy nhất từ cửa hàng.</Text>
         </View>
     );
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header */}
+            <StatusBar barStyle="light-content" />
+
             <View style={styles.header}>
-                <Text style={styles.title}>Giỏ hàng của bạn</Text>
-                {cartItems.length > 0 && (
-                    <TouchableOpacity onPress={clearCart}>
-                        <Text style={styles.clearText}>Xóa tất cả</Text>
-                    </TouchableOpacity>
-                )}
+                <Text style={styles.chapterMarker}>CHAPTER IV · LOGISTICS</Text>
+                <View style={styles.titleRow}>
+                    <Text style={styles.title}>Giỏ hàng</Text>
+                    {cartItems.length > 0 && (
+                        <TouchableOpacity onPress={clearCart}>
+                            <Text style={styles.clearText}>DỌN DẸP</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
 
-            {/* Divider */}
-            <View style={styles.divider} />
-
-            {/* List */}
             <FlatList
                 data={cartItems}
                 keyExtractor={item => item.id.toString()}
@@ -78,16 +79,14 @@ export const CartScreen: React.FC = () => {
                 showsVerticalScrollIndicator={false}
             />
 
-            {/* Footer */}
             {cartItems.length > 0 && (
                 <View style={styles.footer}>
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Tạm tính</Text>
-                        <Text style={styles.summaryValue}>${totalPrice.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Thuế</Text>
-                        <Text style={styles.summaryTax}>Đã bao gồm trong giá</Text>
+                    <View style={styles.summaryBox}>
+                        <View style={styles.summaryRow}>
+                            <Text style={styles.summaryLabel}>TỔNG DỰ KIẾN</Text>
+                            <Text style={styles.summaryValue}>${totalPrice.toLocaleString()}</Text>
+                        </View>
+                        <Text style={styles.taxNote}>Thuế và phí bản quyền đã được tối ưu.</Text>
                     </View>
 
                     <TouchableOpacity
@@ -95,29 +94,24 @@ export const CartScreen: React.FC = () => {
                         onPress={handleCheckout}
                         disabled={loading}
                     >
-                        <Text style={styles.checkoutBtnLeft}>Tiến hành Thanh toán</Text>
-                        <Text style={styles.checkoutBtnRight}>${totalPrice.toFixed(2)}</Text>
+                        <Text style={styles.checkoutBtnText}>XÁC NHẬN GIAO DỊCH</Text>
+                        <Ionicons name="chevron-forward" size={18} color="#000" />
                     </TouchableOpacity>
-
-                    <Text style={styles.secureText}>MÃ HÓA BẢO MẬT 256-BIT</Text>
                 </View>
             )}
 
-            {/* Success Modal */}
             <Modal visible={showSuccess} transparent animationType="fade">
                 <View style={styles.overlay}>
-                    <View style={styles.modalCard}>
-                        <View style={styles.successIconWrap}>
-                            <Ionicons name="checkmark-circle" size={64} color="#16869C" />
-                        </View>
-                        <Text style={styles.modalTitle}>Đặt hàng Thành công!</Text>
+                    <LinearGradient colors={['#111827', '#000']} style={styles.modalCard}>
+                        <Ionicons name="checkmark-circle" size={80} color={ShopifyTheme.colors.accent} />
+                        <Text style={styles.modalTitle}>Thành Công.</Text>
                         <Text style={styles.modalText}>
-                            Công cụ của bạn đã được khởi tạo. Thông tin kích hoạt và bản quyền đã được gửi tới email của bạn.
+                            Đơn hàng đã được ghi nhận vào hệ thống. Bản quyền AI của bạn đang được khởi tạo.
                         </Text>
                         <TouchableOpacity style={styles.doneBtn} onPress={() => setShowSuccess(false)}>
-                            <Text style={styles.doneBtnText}>Hoàn tất</Text>
+                            <Text style={styles.doneBtnText}>HOÀN TẤT</Text>
                         </TouchableOpacity>
-                    </View>
+                    </LinearGradient>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -127,60 +121,83 @@ export const CartScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: ShopifyTheme.colors.background,
     },
     header: {
+        paddingHorizontal: 32,
+        paddingTop: 40,
+        paddingBottom: 24,
+    },
+    chapterMarker: {
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 2,
+        marginBottom: 16,
+    },
+    titleRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 28,
-        paddingTop: 24,
-        paddingBottom: 20,
+        alignItems: 'baseline',
     },
     title: {
-        fontSize: 26,
-        fontWeight: '800',
-        color: '#0F172A',
-        letterSpacing: -0.8,
+        fontSize: 48,
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -1.5,
     },
     clearText: {
-        fontSize: 13,
-        color: '#94A3B8',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#F1F5F9',
+        fontSize: 11,
+        color: ShopifyTheme.colors.textMuted,
+        fontWeight: '900',
+        letterSpacing: 1,
     },
     listContent: {
-        paddingHorizontal: 28,
-        paddingBottom: 20,
+        paddingHorizontal: 24,
+        paddingBottom: 40,
         flexGrow: 1,
     },
     emptyContainer: {
+        flex: 1,
         alignItems: 'center',
-        paddingTop: 80,
-        gap: 12,
+        justifyContent: 'center',
+        paddingTop: 100,
+    },
+    romanGroup: {
+        marginBottom: 20,
+    },
+    roman: {
+        color: 'rgba(255,255,255,0.05)',
+        fontSize: 80,
+        fontWeight: '900',
+        letterSpacing: 10,
     },
     emptyTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#0F172A',
+        fontSize: 32,
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -1,
+        marginBottom: 16,
     },
     emptyText: {
-        fontSize: 14,
-        color: '#94A3B8',
+        fontSize: 16,
+        color: ShopifyTheme.colors.textMuted,
         textAlign: 'center',
-        maxWidth: 240,
+        maxWidth: 280,
+        lineHeight: 24,
     },
-
-    // Footer
     footer: {
-        borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
-        paddingHorizontal: 28,
-        paddingTop: 20,
-        paddingBottom: Platform.OS === 'ios' ? 16 : 24,
-        gap: 12,
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    },
+    summaryBox: {
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 24,
+        padding: 32,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     summaryRow: {
         flexDirection: 'row',
@@ -188,92 +205,77 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     summaryLabel: {
-        fontSize: 14,
-        color: '#64748B',
+        fontSize: 12,
+        fontWeight: '900',
+        color: ShopifyTheme.colors.textMuted,
+        letterSpacing: 1,
     },
     summaryValue: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#0F172A',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        fontSize: 28,
+        fontWeight: '900',
+        color: '#FFF',
     },
-    summaryTax: {
-        fontSize: 13,
-        color: '#94A3B8',
+    taxNote: {
+        fontSize: 12,
+        color: ShopifyTheme.colors.textMuted,
+        marginTop: 12,
         fontStyle: 'italic',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
     checkoutBtn: {
+        backgroundColor: '#FFF',
+        borderRadius: 100,
+        height: 72,
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#16869C',
-        borderRadius: 6,
-        paddingHorizontal: 20,
-        paddingVertical: 18,
-        marginTop: 4,
+        justifyContent: 'center',
+        gap: 12,
     },
-    checkoutBtnLeft: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        letterSpacing: 0.2,
+    checkoutBtnText: {
+        color: '#000',
+        fontSize: 14,
+        fontWeight: '900',
+        letterSpacing: 1,
     },
-    checkoutBtnRight: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    },
-    secureText: {
-        textAlign: 'center',
-        fontSize: 10,
-        color: '#CBD5E1',
-        letterSpacing: 1.5,
-        fontWeight: '600',
-    },
-
-    // Success modal
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
+        backgroundColor: 'rgba(0,0,0,0.9)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24,
+        padding: 32,
     },
     modalCard: {
         width: '100%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        padding: 32,
+        borderRadius: 40,
+        padding: 48,
         alignItems: 'center',
-    },
-    successIconWrap: {
-        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     modalTitle: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#0F172A',
-        marginBottom: 12,
-        letterSpacing: -0.5,
+        fontSize: 40,
+        fontWeight: '900',
+        color: '#FFF',
+        marginTop: 24,
+        marginBottom: 16,
+        letterSpacing: -1,
     },
     modalText: {
-        fontSize: 14,
-        color: '#64748B',
+        fontSize: 16,
+        color: ShopifyTheme.colors.textMuted,
         textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 28,
+        lineHeight: 24,
+        marginBottom: 40,
     },
     doneBtn: {
-        backgroundColor: '#0F172A',
-        borderRadius: 6,
-        paddingHorizontal: 40,
-        paddingVertical: 14,
+        backgroundColor: ShopifyTheme.colors.accent,
+        borderRadius: 100,
+        paddingHorizontal: 48,
+        paddingVertical: 18,
     },
     doneBtnText: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 15,
+        color: '#000',
+        fontWeight: '900',
+        fontSize: 14,
+        letterSpacing: 1,
     },
 });

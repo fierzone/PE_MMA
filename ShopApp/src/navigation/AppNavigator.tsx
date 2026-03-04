@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -36,8 +36,8 @@ const AdminTab = createBottomTabNavigator();
 function LoadingScreen() {
     return (
         <View style={styles.loadingScreen}>
-            <ActivityIndicator size="large" color="#16869C" />
-            <Text style={styles.loadingText}>Đang tải...</Text>
+            <Ionicons name="diamond" size={40} color="#5EEAD4" />
+            <Text style={styles.loadingText}>KHỞI TẠO HỆ THỐNG...</Text>
         </View>
     );
 }
@@ -58,8 +58,8 @@ function CustomerTabNavigator() {
         <CustomerTab.Navigator
             screenOptions={({ route }) => ({
                 headerShown: false,
-                tabBarActiveTintColor: '#16869C',
-                tabBarInactiveTintColor: '#94A3B8',
+                tabBarActiveTintColor: '#5EEAD4',
+                tabBarInactiveTintColor: 'rgba(255,255,255,0.3)',
                 tabBarStyle: tabBarStyle,
                 tabBarLabelStyle: tabLabelStyle,
                 tabBarIcon: ({ focused, color }) => {
@@ -86,9 +86,9 @@ function AdminTabNavigator() {
         <AdminTab.Navigator
             screenOptions={({ route }) => ({
                 headerShown: false,
-                tabBarActiveTintColor: '#16869C',
-                tabBarInactiveTintColor: '#94A3B8',
-                tabBarStyle: { ...tabBarStyle, borderTopColor: '#E2E8F0' },
+                tabBarActiveTintColor: '#5EEAD4',
+                tabBarInactiveTintColor: 'rgba(255,255,255,0.3)',
+                tabBarStyle: adminTabBarStyle,
                 tabBarLabelStyle: tabLabelStyle,
                 tabBarIcon: ({ focused, color }) => {
                     const icons: Record<string, [string, string]> = {
@@ -102,7 +102,7 @@ function AdminTabNavigator() {
                 },
             })}
         >
-            <AdminTab.Screen name="Dashboard" component={ProfileScreen as any} options={{ title: 'Dashboard' }} />
+            <AdminTab.Screen name="Dashboard" component={ProfileScreen as any} options={{ title: 'Hồ sơ' }} />
             <AdminTab.Screen name="Analytics" component={RevenueScreen as any} options={{ title: 'Doanh thu' }} />
             <AdminTab.Screen name="Products" component={AdminProductListScreen as any} options={{ title: 'Sản phẩm' }} />
             <AdminTab.Screen name="Customers" component={AdminUserListScreen as any} options={{ title: 'Khách hàng' }} />
@@ -168,9 +168,20 @@ const tabBarStyle = {
     height: 64,
     paddingBottom: 8,
     paddingTop: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#000000',
     borderTopWidth: 1,
-    borderTopColor: '#F4F4F5',
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    elevation: 0,
+    shadowOpacity: 0,
+};
+
+const adminTabBarStyle = {
+    height: 64,
+    paddingBottom: 8,
+    paddingTop: 8,
+    backgroundColor: '#000000',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
     elevation: 0,
     shadowOpacity: 0,
 };
@@ -185,14 +196,15 @@ const tabLabelStyle = {
 const styles = StyleSheet.create({
     loadingScreen: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#000000',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 16,
+        gap: 20,
     },
     loadingText: {
-        fontSize: 14,
-        color: '#94A3B8',
-        fontWeight: '500',
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.3)',
+        fontWeight: '900',
+        letterSpacing: 3,
     },
 });

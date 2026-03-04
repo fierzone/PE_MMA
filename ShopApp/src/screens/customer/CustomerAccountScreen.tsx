@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, SafeAreaView,
-    TouchableOpacity, Platform, Alert
+    TouchableOpacity, Alert, StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,8 @@ import { useCart } from '../../context/CartContext';
 import { useOrder } from '../../context/OrderContext';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
+import { ShopifyTheme } from '../../theme/ShopifyTheme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerTabs'>;
 
@@ -21,96 +23,70 @@ export const CustomerAccountScreen: React.FC<Props> = ({ navigation }) => {
 
     const totalSpend = orders.reduce((s, o) => s + o.totalAmount, 0);
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
-    const firstName = user?.fullName?.split(' ').pop() || 'bạn';
+    const greeting = hour < 12 ? 'Buổi Sáng' : hour < 18 ? 'Buổi Chiều' : 'Buổi Tối';
 
     const handleLogout = () => {
-        Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
+        Alert.alert('Đăng xuất', 'Bạn có chắc chắn?', [
             { text: 'Hủy', style: 'cancel' },
-            { text: 'Đăng xuất', style: 'destructive', onPress: logout },
+            { text: 'ĐĂNG XUẤT', style: 'destructive', onPress: logout },
         ]);
     };
 
-    const menuItems = [
-        {
-            icon: 'receipt-outline',
-            label: 'Lịch sử mua hàng',
-            sublabel: `${orders.length} đơn hàng`,
-            onPress: () => navigation.navigate('OrderHistory' as any),
-            color: '#16869C',
-            bg: '#EFF9FB',
-        },
-        {
-            icon: 'bag-outline',
-            label: 'Giỏ hàng hiện tại',
-            sublabel: `${cartItems.length} sản phẩm | $${totalPrice.toFixed(2)}`,
-            onPress: () => (navigation as any).navigate('CustomerTabs', { screen: 'Cart' }),
-            color: '#F59E0B',
-            bg: '#FFFBEB',
-        },
-        {
-            icon: 'storefront-outline',
-            label: 'Khám phá cửa hàng',
-            sublabel: 'Xem tất cả sản phẩm',
-            onPress: () => (navigation as any).navigate('CustomerTabs', { screen: 'Store' }),
-            color: '#8B5CF6',
-            bg: '#F5F3FF',
-        },
-    ];
-
     return (
         <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="light-content" />
             <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Hero Card */}
-                <View style={styles.hero}>
-                    <View style={styles.heroGradient}>
-                        <View style={styles.avatarWrap}>
-                            <Text style={styles.avatarText}>
-                                {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
-                            </Text>
-                        </View>
-                        <Text style={styles.heroGreeting}>{greeting}, {firstName} 👋</Text>
-                        <Text style={styles.heroName}>{user?.fullName}</Text>
-                        <Text style={styles.heroEmail}>{user?.email}</Text>
 
-                        <View style={styles.statsRow}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNum}>{orders.length}</Text>
-                                <Text style={styles.statLabel}>Đơn hàng</Text>
-                            </View>
-                            <View style={styles.statDivider} />
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNum}>${totalSpend.toFixed(0)}</Text>
-                                <Text style={styles.statLabel}>Đã chi tiêu</Text>
-                            </View>
-                            <View style={styles.statDivider} />
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNum}>{cartItems.length}</Text>
-                                <Text style={styles.statLabel}>Trong giỏ</Text>
-                            </View>
+                {/* Chapter marker */}
+                <View style={styles.topPad}>
+                    <Text style={styles.chapterMarker}>CHAPTER XII · PORTRAIT</Text>
+                </View>
+
+                {/* Hero Identity Card */}
+                <LinearGradient colors={['#111827', '#000']} style={styles.heroCard}>
+                    <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{user?.fullName?.charAt(0)?.toUpperCase() || 'U'}</Text>
+                    </View>
+                    <Text style={styles.heroGreeting}>CHÀO {greeting.toUpperCase()}</Text>
+                    <Text style={styles.heroName}>{user?.fullName}</Text>
+                    <Text style={styles.heroEmail}>{user?.email}</Text>
+
+                    <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statNum}>{orders.length}</Text>
+                            <Text style={styles.statLabel}>ĐƠN HÀNG</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={styles.statNum}>${totalSpend.toFixed(0)}</Text>
+                            <Text style={styles.statLabel}>ĐÃ CHI</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={styles.statNum}>{cartItems.length}</Text>
+                            <Text style={styles.statLabel}>TRONG GIỎ</Text>
                         </View>
                     </View>
-                </View>
+                </LinearGradient>
 
                 {/* Recent Orders */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Đơn hàng gần đây</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('OrderHistory' as any)}>
-                            <Text style={styles.seeAll}>Xem tất cả →</Text>
+                        <Text style={styles.sectionTitle}>ĐƠN HÀNG GẦN ĐÂY</Text>
+                        <TouchableOpacity onPress={() => (navigation as any).navigate('OrderHistory')}>
+                            <Text style={styles.seeAll}>XEM TẤT CẢ →</Text>
                         </TouchableOpacity>
                     </View>
 
                     {orders.length === 0 ? (
                         <View style={styles.emptyOrders}>
-                            <Ionicons name="bag-outline" size={36} color="#CBD5E1" />
-                            <Text style={styles.emptyOrdersText}>Chưa có đơn hàng nào</Text>
+                            <Text style={styles.emptyOrdersText}>CHƯA CÓ ĐƠN HÀNG</Text>
                         </View>
                     ) : (
                         orders.slice(0, 3).map((order) => (
                             <View key={order.id} style={styles.orderRow}>
                                 <View style={styles.orderIcon}>
-                                    <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+                                    <Ionicons name="checkmark" size={16} color={ShopifyTheme.colors.accent} />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.orderTitle}>Đơn hàng #{order.id}</Text>
@@ -126,26 +102,46 @@ export const CustomerAccountScreen: React.FC<Props> = ({ navigation }) => {
 
                 {/* Quick Menu */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Truy cập nhanh</Text>
-                    {menuItems.map((item, i) => (
-                        <TouchableOpacity key={i} style={styles.menuRow} onPress={item.onPress} activeOpacity={0.7}>
-                            <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
-                                <Ionicons name={item.icon as any} size={20} color={item.color} />
+                    <Text style={styles.sectionTitle}>TRUY CẬP NHANH</Text>
+
+                    {[
+                        {
+                            icon: 'receipt-outline',
+                            label: 'Lịch sử mua hàng',
+                            sub: `${orders.length} đơn hàng`,
+                            onPress: () => (navigation as any).navigate('OrderHistory'),
+                        },
+                        {
+                            icon: 'bag-outline',
+                            label: 'Giỏ hàng hiện tại',
+                            sub: `${cartItems.length} sản phẩm · $${totalPrice.toFixed(2)}`,
+                            onPress: () => (navigation as any).navigate('CustomerTabs', { screen: 'Cart' }),
+                        },
+                        {
+                            icon: 'storefront-outline',
+                            label: 'Khám phá cửa hàng',
+                            sub: 'Xem tất cả sản phẩm',
+                            onPress: () => (navigation as any).navigate('CustomerTabs', { screen: 'Store' }),
+                        },
+                    ].map((item, i) => (
+                        <TouchableOpacity key={i} style={styles.menuRow} onPress={item.onPress}>
+                            <View style={styles.menuIcon}>
+                                <Ionicons name={item.icon as any} size={20} color={ShopifyTheme.colors.accent} />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.menuLabel}>{item.label}</Text>
-                                <Text style={styles.menuSub}>{item.sublabel}</Text>
+                                <Text style={styles.menuSub}>{item.sub}</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+                            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
                         </TouchableOpacity>
                     ))}
                 </View>
 
                 {/* Logout */}
-                <View style={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-                    <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-                        <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-                        <Text style={styles.logoutText}>Đăng xuất</Text>
+                <View style={{ paddingHorizontal: 24, paddingBottom: 60 }}>
+                    <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                        <Ionicons name="log-out-outline" size={18} color="#FF453A" />
+                        <Text style={styles.logoutText}>ĐĂNG XUẤT</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -154,73 +150,85 @@ export const CustomerAccountScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
-    hero: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
-    heroGradient: {
-        backgroundColor: '#0F172A',
-        borderRadius: 20,
-        padding: 28,
-        alignItems: 'center',
-        overflow: 'hidden',
+    container: { flex: 1, backgroundColor: '#000' },
+    topPad: { paddingHorizontal: 24, paddingTop: 40, paddingBottom: 16 },
+    chapterMarker: {
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 10, fontWeight: '900', letterSpacing: 2,
+        textAlign: 'center',
     },
-    avatarWrap: {
-        width: 72, height: 72, borderRadius: 36,
-        backgroundColor: '#16869C', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 16, borderWidth: 3, borderColor: 'rgba(255,255,255,0.15)',
+    heroCard: {
+        marginHorizontal: 16, borderRadius: 32,
+        padding: 32, alignItems: 'center',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+        marginBottom: 24,
     },
-    avatarText: { fontSize: 30, fontWeight: '800', color: '#FFFFFF' },
-    heroGreeting: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
-    heroName: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
-    heroEmail: { fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 4, marginBottom: 24 },
+    avatar: {
+        width: 80, height: 80, borderRadius: 40,
+        backgroundColor: ShopifyTheme.colors.accent,
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 16,
+    },
+    avatarText: { fontSize: 34, fontWeight: '900', color: '#000' },
+    heroGreeting: { color: ShopifyTheme.colors.textMuted, fontSize: 11, fontWeight: '900', letterSpacing: 2, marginBottom: 8 },
+    heroName: { fontSize: 24, fontWeight: '900', color: '#FFF', letterSpacing: -0.5 },
+    heroEmail: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4, marginBottom: 24 },
     statsRow: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12,
-        paddingVertical: 16, paddingHorizontal: 8, width: '100%',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: 20, paddingVertical: 20, paddingHorizontal: 8, width: '100%',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
     },
     statItem: { flex: 1, alignItems: 'center' },
-    statNum: {
-        fontSize: 20, fontWeight: '800', color: '#FFFFFF',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    },
-    statLabel: { fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 },
-    statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.1)' },
+    statNum: { fontSize: 20, fontWeight: '900', color: '#FFF' },
+    statLabel: { fontSize: 9, color: ShopifyTheme.colors.textMuted, marginTop: 4, fontWeight: '900', letterSpacing: 1 },
+    statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.08)' },
+
     section: {
-        backgroundColor: '#FFFFFF', marginHorizontal: 16, marginTop: 12,
-        borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#F1F5F9',
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        marginHorizontal: 16, marginBottom: 16,
+        borderRadius: 24, padding: 24,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
     },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    sectionTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-    seeAll: { fontSize: 13, color: '#16869C', fontWeight: '600' },
-    emptyOrders: { alignItems: 'center', paddingVertical: 20, gap: 8 },
-    emptyOrdersText: { fontSize: 14, color: '#94A3B8' },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    sectionTitle: { color: ShopifyTheme.colors.textMuted, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+    seeAll: { color: ShopifyTheme.colors.accent, fontSize: 11, fontWeight: '900' },
+
+    emptyOrders: { alignItems: 'center', paddingVertical: 20 },
+    emptyOrdersText: { color: 'rgba(255,255,255,0.15)', fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+
     orderRow: {
         flexDirection: 'row', alignItems: 'center', gap: 12,
-        paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC',
+        paddingVertical: 16,
+        borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
     },
     orderIcon: {
-        width: 36, height: 36, borderRadius: 10,
-        backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center',
-    },
-    orderTitle: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
-    orderDate: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-    orderPrice: {
-        fontSize: 15, fontWeight: '700', color: '#0F172A',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    },
-    menuRow: {
-        flexDirection: 'row', alignItems: 'center', gap: 14,
-        paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F8FAFC',
-    },
-    menuIcon: {
-        width: 44, height: 44, borderRadius: 12,
+        width: 36, height: 36, borderRadius: 12,
+        backgroundColor: 'rgba(94,234,212,0.1)',
         alignItems: 'center', justifyContent: 'center',
     },
-    menuLabel: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
-    menuSub: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-    logoutBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-        backgroundColor: '#FFF5F5', borderWidth: 1, borderColor: '#FECACA',
-        borderRadius: 12, paddingVertical: 16,
+    orderTitle: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+    orderDate: { color: ShopifyTheme.colors.textMuted, fontSize: 12, marginTop: 2 },
+    orderPrice: { color: ShopifyTheme.colors.accent, fontSize: 15, fontWeight: '900' },
+
+    menuRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 16,
+        paddingVertical: 20,
+        borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
     },
-    logoutText: { fontSize: 15, fontWeight: '700', color: '#EF4444' },
+    menuIcon: {
+        width: 44, height: 44, borderRadius: 14,
+        backgroundColor: 'rgba(94,234,212,0.08)',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    menuLabel: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+    menuSub: { color: ShopifyTheme.colors.textMuted, fontSize: 12, marginTop: 2 },
+
+    logoutBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
+        backgroundColor: 'rgba(255, 69, 58, 0.08)',
+        borderWidth: 1, borderColor: 'rgba(255, 69, 58, 0.2)',
+        borderRadius: 100, paddingVertical: 20,
+    },
+    logoutText: { fontSize: 13, fontWeight: '900', color: '#FF453A', letterSpacing: 1 },
 });

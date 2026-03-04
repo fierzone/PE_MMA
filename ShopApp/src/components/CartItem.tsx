@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
 import { CartItemDetailed } from '../types';
 import { Ionicons } from '@expo/vector-icons';
+import { ShopifyTheme } from '../theme/ShopifyTheme';
 
 interface CartItemProps {
     item: CartItemDetailed;
@@ -22,9 +23,9 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
             {/* Middle content */}
             <View style={styles.content}>
                 <Text style={styles.name} numberOfLines={1}>{item.product.name}</Text>
-                <Text style={styles.unitPrice}>${item.product.price.toFixed(2)} / month</Text>
+                <Text style={styles.unitPrice}>${item.product.price.toFixed(2)} / bản quyền</Text>
                 <TouchableOpacity onPress={() => onRemove(item.id)}>
-                    <Text style={styles.removeText}>Remove</Text>
+                    <Text style={styles.removeText}>LOẠI BỎ</Text>
                 </TouchableOpacity>
             </View>
 
@@ -39,14 +40,14 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
                             else onRemove(item.id);
                         }}
                     >
-                        <Ionicons name="remove" size={14} color="#334155" />
+                        <Ionicons name="remove" size={12} color="#FFF" />
                     </TouchableOpacity>
                     <Text style={styles.qty}>{item.quantity}</Text>
                     <TouchableOpacity
                         style={styles.stepBtn}
                         onPress={() => onUpdateQuantity(item.id, item.quantity + 1)}
                     >
-                        <Ionicons name="add" size={14} color="#334155" />
+                        <Ionicons name="add" size={12} color="#FFF" />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -57,24 +58,26 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
 const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         paddingVertical: 24,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: 'rgba(255,255,255,0.05)',
         gap: 16,
     },
     thumb: {
-        width: 70,
-        height: 70,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 4,
+        width: 80,
+        height: 80,
+        backgroundColor: '#111827',
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     thumbImage: {
-        width: '80%',
-        height: '80%',
+        width: '70%',
+        height: '70%',
     },
     content: {
         flex: 1,
@@ -82,18 +85,21 @@ const styles = StyleSheet.create({
     },
     name: {
         fontSize: 16,
-        fontWeight: '700',
-        color: '#0F172A',
-        letterSpacing: -0.3,
+        fontWeight: '800',
+        color: '#FFF',
+        letterSpacing: -0.5,
     },
     unitPrice: {
-        fontSize: 13,
-        color: '#64748B',
+        fontSize: 12,
+        color: ShopifyTheme.colors.textMuted,
+        fontWeight: '500',
     },
     removeText: {
-        fontSize: 13,
-        color: '#94A3B8',
-        marginTop: 4,
+        fontSize: 10,
+        color: '#FF453A',
+        fontWeight: '900',
+        letterSpacing: 1,
+        marginTop: 8,
     },
     rightCol: {
         alignItems: 'flex-end',
@@ -101,30 +107,29 @@ const styles = StyleSheet.create({
     },
     lineTotal: {
         fontSize: 16,
-        fontWeight: '700',
-        color: '#0F172A',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        fontWeight: '900',
+        color: ShopifyTheme.colors.accent,
     },
     stepper: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 100,
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     stepBtn: {
-        width: 32,
-        height: 32,
+        width: 28,
+        height: 28,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F8FAFC',
     },
     qty: {
-        width: 36,
+        width: 32,
         textAlign: 'center',
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#0F172A',
+        fontSize: 13,
+        fontWeight: '900',
+        color: '#FFF',
     },
 });
