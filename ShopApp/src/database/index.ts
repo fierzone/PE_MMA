@@ -98,12 +98,12 @@ export async function initDatabase(db: SQLiteDatabase) {
         if (productCount && productCount.count === 0) {
             await db.execAsync(`
                 INSERT INTO Products (name, description, price, image, tier) VALUES
-                ('Claude 3.5 Opus', 'Mô hình suy luận mạnh nhất của Anthropic. Xuất sắc trong lập trình và phân tích.', 20.00, 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Anthropic_logo.svg/640px-Anthropic_logo.svg.png', 'Premium'),
-                ('GPT-4o Plus', 'Trải nghiệm đa phương thức từ OpenAI. Thông minh, nhanh chóng và tinh tế.', 20.00, 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/640px-ChatGPT_logo.svg.png', 'Pro'),
-                ('Cursor Pro', 'IDE tích hợp AI đỉnh cao. Cách mạng hóa quy trình lập trình của bạn.', 20.00, 'https://cursor.sh/brand/avatar.svg', 'Pro'),
-                ('GitHub Copilot', 'Trợ lý lập trình AI phổ biến nhất thế giới. Tiết kiệm 30% thời gian gõ code.', 10.00, 'https://github.githubassets.com/images/modules/site/features/copilot/copilot-logo.png', 'Basic'),
-                ('Midjourney Pro', 'Sáng tạo hình ảnh nghệ thuật đỉnh cao. Không giới hạn trí tưởng tượng.', 30.00, 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Midjourney_Logo_2023.svg/640px-Midjourney_Logo_2023.svg.png', 'Premium'),
-                ('Suno AI Premium', 'Tạo nhạc chất lượng phòng thu chỉ từ vài dòng văn bản.', 10.00, 'https://suno.com/favicon.ico', 'Basic');
+                ('Claude 3.5 Opus', 'Mô hình suy luận mạnh nhất của Anthropic. Xuất sắc trong lập trình và phân tích.', 20.00, 'https://images.seeklogo.com/logo-png/55/2/claude-logo-png_seeklogo-554540.png', 'Premium'),
+                ('GPT-4o Plus', 'Trải nghiệm đa phương thức từ OpenAI. Thông minh, nhanh chóng và tinh tế.', 20.00, 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/960px-ChatGPT-Logo.svg.png', 'Pro'),
+                ('Cursor Pro', 'IDE tích hợp AI đỉnh cao. Cách mạng hóa quy trình lập trình của bạn.', 20.00, 'https://img.icons8.com/color/512/cursor-ai.png', 'Pro'),
+                ('GitHub Copilot', 'Trợ lý lập trình AI phổ biến nhất thế giới. Tiết kiệm 30% thời gian gõ code.', 10.00, 'https://brandlogos.net/wp-content/uploads/2025/06/github_copilot_icon-logo_brandlogos.net_jxl0m-300x249.png', 'Basic'),
+                ('Midjourney Pro', 'Sáng tạo hình ảnh nghệ thuật đỉnh cao. Không giới hạn trí tưởng tượng.', 30.00, 'https://www.fredzone.org/wp-content/uploads/2023/03/R-1.png', 'Premium'),
+                ('Suno AI Premium', 'Tạo nhạc chất lượng phòng thu chỉ từ vài dòng văn bản.', 10.00, 'https://sudo-labs.github.io/sudolabs/assets/imgs/sudo_logo.png', 'Basic');
             `);
         }
 
