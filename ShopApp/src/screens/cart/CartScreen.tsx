@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, SafeAreaView,
-    TouchableOpacity, Modal, Platform, StatusBar
+    TouchableOpacity, Modal, Platform, StatusBar, ActivityIndicator
 } from 'react-native';
 import { useCart } from '../../context/CartContext';
 import { useOrder } from '../../context/OrderContext';
@@ -17,8 +17,9 @@ export const CartScreen: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
+    // Reload giỏ hàng mỗi khi tab được focus
     useFocusEffect(
-        React.useCallback(() => {
+        useCallback(() => {
             fetchCart();
         }, [fetchCart])
     );
@@ -29,10 +30,12 @@ export const CartScreen: React.FC = () => {
         try {
             const success = await checkout(cartItems, totalPrice);
             if (success) {
+                // Sync CartContext state: OrderContext đã xóa Cart trong DB
+                await clearCart();
                 setShowSuccess(true);
             }
         } catch (e) {
-            console.error(e);
+            console.error('[CartScreen] checkout error:', e);
         } finally {
             setLoading(false);
         }
@@ -97,8 +100,13 @@ export const CartScreen: React.FC = () => {
                         onPress={handleCheckout}
                         disabled={loading}
                     >
-                        <Text style={styles.checkoutBtnText}>XÁC NHẬN GIAO DỊCH</Text>
-                        <Ionicons name="chevron-forward" size={18} color="#000" />
+                        {loading
+                            ? <ActivityIndicator color="#000" />
+                            : <>
+                                <Text style={styles.checkoutBtnText}>XÁC NHẬN GIAO DỊCH</Text>
+                                <Ionicons name="chevron-forward" size={18} color="#000" />
+                            </>
+                        }
                     </TouchableOpacity>
                 </View>
             )}

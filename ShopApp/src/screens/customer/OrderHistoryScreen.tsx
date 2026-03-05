@@ -8,6 +8,7 @@ import { useOrder } from '../../context/OrderContext';
 import { useNavigation } from '@react-navigation/native';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import { Order, OrderItem } from '../../types';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const OrderHistoryScreen: React.FC = () => {
     const { orders, fetchOrders, isLoading, fetchOrderItems } = useOrder();
@@ -17,9 +18,11 @@ export const OrderHistoryScreen: React.FC = () => {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [loadingItems, setLoadingItems] = useState(false);
 
-    useEffect(() => {
-        fetchOrders();
-    }, [fetchOrders]);
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchOrders();
+        }, [fetchOrders])
+    );
 
     const totalSpend = orders.reduce((s, o) => s + o.totalAmount, 0);
 

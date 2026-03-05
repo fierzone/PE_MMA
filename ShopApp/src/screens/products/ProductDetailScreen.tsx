@@ -24,7 +24,9 @@ const ENVIRONMENTS = [
 ];
 
 export const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
-    const { product } = route.params;
+    // 1. Lấy dữ liệu từ params truyền sang
+    const initialProduct = route.params.product;
+    const [product, setProduct] = useState(initialProduct);
     const { addToCart } = useCart();
     const { checkout } = useOrder();
     const { user } = useAuth();
@@ -33,20 +35,46 @@ export const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [purchaseEmail, setPurchaseEmail] = useState(user?.email || '');
 
+    // Debug Data Flow
+    React.useEffect(() => {
+        console.log('[ProductDetail] Loaded with ID:', product?.id);
+        if (!product || !product.id) {
+            console.warn('[ProductDetail] DATA DISCONNECT: No valid product ID found!');
+        }
+    }, [product]);
+
     const validateEmail = (email: string) => {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     };
 
     const handleAdd = async () => {
-        await addToCart(product.id, 1);
-        setAdded(true);
-        Toast.show({ type: 'success', text1: '✓ Đã thêm vào giỏ', text2: product.name });
-        setTimeout(() => setAdded(false), 2000);
+        if (!user) {
+            Toast.show({ type: 'error', text1: 'Yêu cầu đăng nhập', text2: 'Vui lòng đăng nhập để sử dụng tính năng này.' });
+            return;
+        }
+        try {
+            await addToCart(product.id, 1);
+            setAdded(true);
+            Toast.show({ type: 'success', text1: '✓ Đã thêm vào giỏ', text2: product.name });
+
+            setTimeout(() => {
+                setAdded(false);
+                navigation.navigate('CustomerTabs' as any, { screen: 'Cart' });
+            }, 800);
+        } catch (e: any) {
+            console.error('[ProductDetail] handleAdd error:', e);
+            // HIỆN LỖI CHI TIẾT ĐỂ DEBUG
+            Toast.show({
+                type: 'error',
+                text1: 'Lỗi thêm giỏ hàng',
+                text2: e.message || 'Sự cố không xác định'
+            });
+        }
     };
 
     const confirmPurchase = async () => {
         if (!validateEmail(purchaseEmail)) {
-            Toast.show({ type: 'error', text1: 'Lỗi', text2: 'Vui lòng nhập email hợp lệ.' });
+            Toast.show({ type: 'error', text1: 'Lỗi Email', text2: 'Vui lòng nhập email hợp lệ để nhận bản quyền.' });
             return;
         }
 
@@ -64,16 +92,20 @@ export const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             if (success) {
                 Toast.show({
                     type: 'success',
-                    text1: 'Thanh toán thành công',
-                    text2: `Bản quyền đã được gửi tới: ${purchaseEmail}`
+                    text1: 'Thanh toán hoàn tất',
+                    text2: `Giấy phép đã được gửi tới: ${purchaseEmail}`
                 });
-                navigation.navigate('CustomerTabs', { screen: 'Cart' } as any);
+                navigation.navigate('OrderHistory' as any);
             } else {
-                Toast.show({ type: 'error', text1: 'Lỗi', text2: 'Không thể thực hiện giao dịch.' });
+                Toast.show({ type: 'error', text1: 'Giao dịch thất bại', text2: 'Hệ thống từ chối thanh toán. Vui lòng kiểm lại giỏ hàng.' });
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Buy Now error:', e);
-            Toast.show({ type: 'error', text1: 'Lỗi hệ thống', text2: 'Vui lòng thử lại sau.' });
+            Toast.show({
+                type: 'error',
+                text1: 'Lỗi hệ thống',
+                text2: e.message || 'Không thể kết nối cơ sở dữ liệu.'
+            });
         } finally {
             setLoading(false);
         }

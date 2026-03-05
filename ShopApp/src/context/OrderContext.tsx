@@ -27,35 +27,58 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(false);
     const [stats, setStats] = useState<{ totalRevenue: number; orderCount: number } | null>(null);
 
+    // ─── SQL Settings ────────────────────────────────────────────────────────
+    const ensureSqlSettings = useCallback(async () => {
+        try {
+            await db.execAsync('PRAGMA foreign_keys = ON;');
+        } catch (e) {
+            console.warn('[OrderContext] PRAGMA error:', e);
+        }
+    }, [db]);
+
+    // ─── fetchOrders ─────────────────────────────────────────────────────────
     const fetchOrders = useCallback(async () => {
         if (!user) { setOrders([]); return; }
         setIsLoading(true);
         try {
+            await ensureSqlSettings();
             let rows: Order[];
             if (isAdmin) {
+                // Admin: lấy ALL orders kèm thông tin khách
                 rows = await db.getAllAsync<Order>(`
-                    SELECT o.*, u.fullName as customerName, u.email as customerEmail
+                    SELECT o.id, o.userId, o.totalAmount, o.createdAt,
+                           u.fullName AS customerName,
+                           u.email    AS customerEmail
                     FROM Orders o
                     LEFT JOIN Users u ON o.userId = u.id
                     ORDER BY o.createdAt DESC
                 `);
             } else {
+                // Customer: chỉ lấy đơn của mình
                 rows = await db.getAllAsync<Order>(
                     'SELECT * FROM Orders WHERE userId = ? ORDER BY createdAt DESC',
                     [user.id]
                 );
             }
             setOrders(rows);
-        } catch (e) {
-            console.error('fetchOrders error:', e);
+        } catch (e: any) {
+            if (!e.message?.includes('no such table')) {
+                console.error('[Order] fetchOrders error:', e);
+            }
+            setOrders([]);
         } finally {
             setIsLoading(false);
         }
-    }, [db, user, isAdmin]);
+    }, [db, user, isAdmin, ensureSqlSettings]);
 
+    // ─── fetchStats ──────────────────────────────────────────────────────────
     const fetchStats = useCallback(async (period: '24h' | '7d' | '30d' | 'all' = 'all') => {
         try {
-            let query = 'SELECT COALESCE(SUM(totalAmount), 0) as totalRevenue, COUNT(*) as orderCount FROM Orders';
+            await ensureSqlSettings();
+            let query = `SELECT
+                COALESCE(SUM(totalAmount), 0) AS totalRevenue,
+                COUNT(*) AS orderCount
+            FROM Orders`;
             const params: any[] = [];
             if (period !== 'all') {
                 const d = new Date();
@@ -66,137 +89,169 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 params.push(d.toISOString());
             }
             const result = await db.getFirstAsync<{ totalRevenue: number; orderCount: number }>(query, params);
-            setStats(result || { totalRevenue: 0, orderCount: 0 });
-        } catch (e) {
-            console.error('fetchStats error:', e);
-        }
-    }, [db]);
-
-    const checkout = async (items: CartItemDetailed[], total: number) => {
-        if (!user) return false;
-        try {
-            const now = new Date().toISOString();
-            const result = await db.runAsync(
-                'INSERT INTO Orders (totalAmount, createdAt, userId) VALUES (?, ?, ?)',
-                [total, now, user.id]
-            );
-            const orderId = result.lastInsertRowId;
-
-            for (const item of items) {
-                // 1. Create Order Item
-                await db.runAsync(
-                    'INSERT INTO OrderItems (orderId, productId, quantity, price) VALUES (?, ?, ?, ?)',
-                    [orderId, item.productId, item.quantity, item.product.price]
-                );
-
-                // 2. Auto-activation: Create License
-                const licenseKey = `AI-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-                const expiresAt = new Date();
-                expiresAt.setMonth(expiresAt.getMonth() + 1); // 1 month validity
-
-                await db.runAsync(
-                    'INSERT INTO Licenses (userId, productId, orderId, licenseKey, activatedAt, expiresAt) VALUES (?, ?, ?, ?, ?, ?)',
-                    [user.id, item.productId, orderId, licenseKey, now, expiresAt.toISOString()]
-                );
+            setStats(result ?? { totalRevenue: 0, orderCount: 0 });
+        } catch (e: any) {
+            if (!e.message?.includes('no such table')) {
+                console.error('[Order] fetchStats error:', e);
             }
+        }
+    }, [db, ensureSqlSettings]);
 
-            await db.runAsync('DELETE FROM Cart WHERE userId = ?', [user.id]);
+    // ─── checkout (Sử dụng Transaction để đảm bảo an toàn) ──────────────────────────
+    const checkout = useCallback(async (items: CartItemDetailed[], total: number): Promise<boolean> => {
+        if (!user?.id) return false;
+
+        try {
+            await ensureSqlSettings();
+            const uid = Number(user.id);
+            const now = new Date().toISOString();
+
+            // Sử dụng transaction để đảm bảo tất cả hoặc không có gì
+            await db.withTransactionAsync(async () => {
+                // 1. Tạo Order chính
+                const result = await db.runAsync(
+                    'INSERT INTO Orders (userId, totalAmount, createdAt) VALUES (?, ?, ?)',
+                    [uid, total, now]
+                );
+                const orderId = result.lastInsertRowId;
+
+                // 2. Tạo OrderItems và Licenses
+                for (const item of items) {
+                    const pid = Number(item.productId);
+                    await db.runAsync(
+                        'INSERT INTO OrderItems (orderId, productId, quantity, price) VALUES (?, ?, ?, ?)',
+                        [orderId, pid, item.quantity, item.product.price]
+                    );
+
+                    const licenseKey = `AI-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+                    const expiresAt = new Date();
+                    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+                    await db.runAsync(
+                        'INSERT INTO Licenses (userId, productId, orderId, licenseKey, activatedAt, expiresAt) VALUES (?, ?, ?, ?, ?, ?)',
+                        [uid, pid, orderId, licenseKey, now, expiresAt.toISOString()]
+                    );
+                }
+
+                // 3. Xóa giỏ hàng của user này
+                await db.runAsync('DELETE FROM Cart WHERE userId = ?', [uid]);
+            });
+
+            // 4. Reload data sau khi transaction thành công
             await fetchOrders();
+            await fetchStats('all');
             return true;
         } catch (e) {
-            console.error('checkout error:', e);
+            console.error('[OrderContext] checkout failed:', e);
             return false;
         }
-    };
+    }, [db, user, fetchOrders, fetchStats, ensureSqlSettings]);
 
-    const getRevenueByPeriod = async (period: 'day' | 'month' | 'year') => {
+    // ─── Analytics ───────────────────────────────────────────────────────────
+    const getRevenueByPeriod = useCallback(async (period: 'day' | 'month' | 'year') => {
         const fmt = period === 'month' ? '%Y-%m' : period === 'year' ? '%Y' : '%Y-%m-%d';
         try {
+            await ensureSqlSettings();
             return await db.getAllAsync<{ period: string; amount: number }>(`
-                SELECT strftime('${fmt}', createdAt) as period, SUM(totalAmount) as amount
-                FROM Orders GROUP BY period ORDER BY period DESC
+                SELECT strftime('${fmt}', createdAt) AS period,
+                       SUM(totalAmount) AS amount
+                FROM Orders
+                GROUP BY period
+                ORDER BY period ASC
             `);
         } catch (e) {
             return [];
         }
-    };
+    }, [db, ensureSqlSettings]);
 
-    const getTopSpenders = async () => {
+    const getTopSpenders = useCallback(async () => {
         try {
+            await ensureSqlSettings();
             return await db.getAllAsync<{ name: string; email: string; totalSpent: number; orderCount: number }>(`
-                SELECT u.fullName as name, u.email, SUM(o.totalAmount) as totalSpent, COUNT(o.id) as orderCount
+                SELECT u.fullName AS name, u.email,
+                       COALESCE(SUM(o.totalAmount), 0) AS totalSpent,
+                       COUNT(o.id) AS orderCount
                 FROM Users u
                 JOIN Orders o ON u.id = o.userId
                 GROUP BY u.id
-                ORDER BY totalSpent DESC
-                LIMIT 5
+                ORDER BY totalSpent DESC LIMIT 5
             `);
         } catch (e) {
             return [];
         }
-    };
+    }, [db, ensureSqlSettings]);
 
-    const getTopProducts = async () => {
+    const getTopProducts = useCallback(async () => {
         try {
+            await ensureSqlSettings();
             return await db.getAllAsync<{ name: string; quantity: number }>(`
-                SELECT p.name, SUM(oi.quantity) as quantity
+                SELECT p.name, SUM(oi.quantity) AS quantity
                 FROM OrderItems oi
                 JOIN Products p ON oi.productId = p.id
                 GROUP BY p.id
-                ORDER BY quantity DESC
-                LIMIT 5
+                ORDER BY quantity DESC LIMIT 5
             `);
         } catch (e) {
             return [];
         }
-    };
+    }, [db, ensureSqlSettings]);
 
-    const getActiveUsersCount = async () => {
+    const getActiveUsersCount = useCallback(async () => {
         try {
-            const result = await db.getFirstAsync<{ count: number }>("SELECT COUNT(DISTINCT userId) as count FROM Orders");
+            await ensureSqlSettings();
+            const result = await db.getFirstAsync<{ count: number }>('SELECT COUNT(DISTINCT userId) AS count FROM Orders');
             return result?.count ?? 0;
         } catch (e) {
             return 0;
         }
-    };
+    }, [db, ensureSqlSettings]);
 
-    const fetchOrderItems = async (orderId: number) => {
+    const fetchOrderItems = useCallback(async (orderId: number): Promise<OrderItem[]> => {
         try {
+            await ensureSqlSettings();
             return await db.getAllAsync<OrderItem>(`
-                SELECT oi.*, p.name as productName
+                SELECT oi.*, p.name AS productName
                 FROM OrderItems oi
                 JOIN Products p ON oi.productId = p.id
                 WHERE oi.orderId = ?
             `, [orderId]);
         } catch (e) {
-            console.error('fetchOrderItems error:', e);
             return [];
         }
-    };
+    }, [db, ensureSqlSettings]);
 
-    const fetchLicenses = async () => {
+    const fetchLicenses = useCallback(async () => {
         if (!user) return [];
         try {
+            await ensureSqlSettings();
             return await db.getAllAsync<any>(`
-                SELECT l.*, p.name as productName, p.image as productImage
+                SELECT l.*, p.name AS productName, p.image AS productImage
                 FROM Licenses l
                 JOIN Products p ON l.productId = p.id
                 WHERE l.userId = ?
                 ORDER BY l.activatedAt DESC
             `, [user.id]);
         } catch (e) {
-            console.error('fetchLicenses error:', e);
             return [];
         }
-    };
+    }, [db, user, ensureSqlSettings]);
 
-    React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
+    React.useEffect(() => {
+        if (user) {
+            fetchOrders();
+            if (isAdmin) fetchStats('all');
+        } else {
+            setOrders([]);
+            setStats(null);
+        }
+    }, [user, isAdmin, fetchOrders, fetchStats]);
 
     return (
         <OrderContext.Provider value={{
-            orders, isLoading, stats, fetchOrders, fetchStats, checkout,
-            getRevenueByPeriod, getTopSpenders, getTopProducts, getActiveUsersCount,
-            fetchOrderItems, fetchLicenses
+            orders, isLoading, stats,
+            fetchOrders, fetchStats, checkout,
+            getRevenueByPeriod, getTopSpenders, getTopProducts,
+            getActiveUsersCount, fetchOrderItems, fetchLicenses,
         }}>
             {children}
         </OrderContext.Provider>
