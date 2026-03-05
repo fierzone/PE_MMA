@@ -51,7 +51,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         } catch (e) {
             console.error('Fetch cart error:', e);
         }
-    }, [db]);
+    }, [db, user]);
 
     const addToCart = async (productId: number, quantity: number = 1) => {
         if (!user) return;

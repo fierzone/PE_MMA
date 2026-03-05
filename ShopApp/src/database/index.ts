@@ -83,6 +83,16 @@ export async function initDatabase(db: SQLiteDatabase) {
             );
         `);
 
+        // 7. Saved Accounts (for Remember Me)
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS SavedAccounts (
+                email TEXT PRIMARY KEY,
+                password TEXT NOT NULL,
+                fullName TEXT,
+                lastUsed TEXT NOT NULL
+            );
+        `);
+
         // Seed Products if empty
         const productCount = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM Products');
         if (productCount && productCount.count === 0) {

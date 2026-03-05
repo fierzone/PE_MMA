@@ -10,10 +10,12 @@ interface AuthContextType {
     login: (email: string, password: string, remember: boolean) => Promise<{ success: boolean; error?: string }>;
     register: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
+    getSavedAccounts: () => Promise<{ email: string; fullName: string; lastUsed: string; password?: string }[]>;
+    removeSavedAccount: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-const SESSION_KEY = '@user_session_v3'; // Incremented version to clear old stale sessions
+const SESSION_KEY = '@user_session_v3';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const db = useSQLiteContext();
@@ -22,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const timer = setTimeout(() => {
             loadSession();
-        }, 500); // Give DB a moment to be ready
+        }, 500);
         return () => clearTimeout(timer);
     }, []);
 
@@ -60,6 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (user) {
                 if (remember) {
                     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(user));
+                    // Save to SQLite SavedAccounts
+                    const now = new Date().toISOString();
+                    await db.runAsync(
+                        'INSERT OR REPLACE INTO SavedAccounts (email, password, fullName, lastUsed) VALUES (?, ?, ?, ?)',
+                        [cleanEmail, password, user.fullName, now]
+                    );
                 }
                 setAuthState({ user, isLoading: false });
                 return { success: true };
@@ -67,6 +75,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { success: false, error: 'Tài khoản hoặc mật khẩu không đúng.' };
         } catch (e) {
             return { success: false, error: 'Lỗi xác thực hệ thống.' };
+        }
+    };
+
+    const getSavedAccounts = async () => {
+        try {
+            return await db.getAllAsync<any>(
+                'SELECT * FROM SavedAccounts ORDER BY lastUsed DESC'
+            );
+        } catch (e) {
+            return [];
+        }
+    };
+
+    const removeSavedAccount = async (email: string) => {
+        try {
+            await db.runAsync('DELETE FROM SavedAccounts WHERE email = ?', [email]);
+        } catch (e) {
+            console.error('Remove saved account error:', e);
         }
     };
 
@@ -98,7 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = async () => {
         try {
             await AsyncStorage.removeItem(SESSION_KEY);
-            // Also potential other session keys
             await AsyncStorage.multiRemove([SESSION_KEY, '@user_session_v2', '@user_session_v1']);
             setAuthState({ user: null, isLoading: false });
         } catch (e) {
@@ -110,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isAdmin = authState.user?.role === 'admin';
 
     return (
-        <AuthContext.Provider value={{ ...authState, isAdmin, login, register, logout }}>
+        <AuthContext.Provider value={{ ...authState, isAdmin, login, register, logout, getSavedAccounts, removeSavedAccount }}>
             {children}
         </AuthContext.Provider>
     );

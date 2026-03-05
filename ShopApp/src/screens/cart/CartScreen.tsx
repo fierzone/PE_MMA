@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, SafeAreaView,
     TouchableOpacity, Modal, Platform, StatusBar
@@ -9,6 +9,7 @@ import { CartItem } from '../../components/CartItem';
 import { Ionicons } from '@expo/vector-icons';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const CartScreen: React.FC = () => {
     const { cartItems, totalPrice, fetchCart, updateCartItemQuantity, removeFromCart, clearCart } = useCart();
@@ -16,9 +17,11 @@ export const CartScreen: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
-    useEffect(() => {
-        fetchCart();
-    }, [fetchCart]);
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchCart();
+        }, [fetchCart])
+    );
 
     const handleCheckout = async () => {
         if (cartItems.length === 0) return;

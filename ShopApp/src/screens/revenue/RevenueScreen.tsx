@@ -35,9 +35,23 @@ export const RevenueScreen: React.FC = () => {
             getRevenueByPeriod('day'),
             getActiveUsersCount()
         ]);
+
+        // Fill gaps for last 7 days
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const matching = revenue.find(r => r.period === dateStr);
+            last7Days.push({
+                period: dateStr,
+                amount: matching ? matching.amount : 0
+            });
+        }
+
         setTopSpenders(spenders);
-        setTopProducts(products);
-        setRevenueHistory(revenue.slice(0, 7).reverse()); // Last 7 periods
+        setTopProducts(products.slice(0, 5));
+        setRevenueHistory(last7Days);
         setActiveUsers(count);
     };
 

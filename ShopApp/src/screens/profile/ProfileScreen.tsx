@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import { useSQLiteContext } from 'expo-sqlite';
+import Toast from 'react-native-toast-message';
 
 export const ProfileScreen: React.FC = () => {
     const { user, logout, isAdmin } = useAuth();
@@ -15,9 +16,13 @@ export const ProfileScreen: React.FC = () => {
     const db = useSQLiteContext();
     const [stats, setStats] = useState({ orders: 0, spent: 0 });
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [dbInfo, setDbInfo] = useState({ size: '0 KB', tables: 0 });
 
     useEffect(() => {
-        if (user) loadUserStats();
+        if (user) {
+            loadUserStats();
+            if (isAdmin) loadSystemStats();
+        }
     }, [user]);
 
     const loadUserStats = async () => {
@@ -33,6 +38,13 @@ export const ProfileScreen: React.FC = () => {
         }
     };
 
+    const loadSystemStats = async () => {
+        try {
+            const tables = await db.getAllAsync<any>("SELECT name FROM sqlite_master WHERE type='table'");
+            setDbInfo({ size: '~1.2 MB', tables: tables.length });
+        } catch (e) { }
+    };
+
     const handleLogout = () => {
         setShowLogoutModal(true);
     };
@@ -43,6 +55,16 @@ export const ProfileScreen: React.FC = () => {
             await logout();
         } catch (e) {
             console.error('Logout failed:', e);
+        }
+    };
+
+    const handleUtilityAction = (title: string) => {
+        if (title === 'Lịch sử mua hàng') {
+            navigation.navigate('OrderHistory' as any);
+        } else if (title === 'Quản lý thành viên') {
+            navigation.navigate('AdminTabs', { screen: 'Users' } as any);
+        } else {
+            Toast.show({ type: 'info', text1: 'Tính năng đang phát triển', text2: title });
         }
     };
 
@@ -82,39 +104,72 @@ export const ProfileScreen: React.FC = () => {
                     </View>
 
                     <View style={styles.menuSection}>
-                        <Text style={styles.menuTitle}>TIỆN ÍCH</Text>
+                        <Text style={styles.menuTitle}>TIỆN ÍCH HỆ THỐNG</Text>
 
                         {isAdmin && (
                             <TouchableOpacity
                                 style={styles.menuItem}
-                                onPress={() => (navigation as any).navigate('AdminUserList')}
+                                onPress={() => handleUtilityAction('Quản lý thành viên')}
                             >
                                 <View style={styles.menuItemLeft}>
-                                    <View style={[styles.menuIconBox, { backgroundColor: ShopifyTheme.colors.burgundy }]}>
-                                        <Ionicons name="people-outline" size={20} color="#FFF" />
+                                    <View style={[styles.menuIconBox, { backgroundColor: 'rgba(94, 234, 212, 0.1)' }]}>
+                                        <Ionicons name="people-outline" size={20} color={ShopifyTheme.colors.accent} />
                                     </View>
-                                    <Text style={styles.menuItemText}>Quản lý thành viên</Text>
+                                    <View>
+                                        <Text style={styles.menuItemText}>Quản lý thành viên</Text>
+                                        <Text style={styles.menuItemSub}>Phân quyền và bảo mật tài khoản</Text>
+                                    </View>
                                 </View>
                                 <Ionicons name="chevron-forward" size={18} color={ShopifyTheme.colors.textMuted} />
                             </TouchableOpacity>
                         )}
 
-                        <TouchableOpacity style={styles.menuItem}>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => handleUtilityAction('Lịch sử mua hàng')}
+                        >
                             <View style={styles.menuItemLeft}>
                                 <View style={styles.menuIconBox}>
-                                    <Ionicons name="time-outline" size={20} color="#FFF" />
+                                    <Ionicons name="receipt-outline" size={20} color="#FFF" />
                                 </View>
-                                <Text style={styles.menuItemText}>Lịch sử mua hàng</Text>
+                                <View>
+                                    <Text style={styles.menuItemText}>Lịch sử mua hàng</Text>
+                                    <Text style={styles.menuItemSub}>Xem lại các giao dịch AI</Text>
+                                </View>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={ShopifyTheme.colors.textMuted} />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem}>
+                        {isAdmin && (
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => handleUtilityAction('Cấu trúc dữ liệu')}
+                            >
+                                <View style={styles.menuItemLeft}>
+                                    <View style={styles.menuIconBox}>
+                                        <Ionicons name="server-outline" size={20} color="#FFF" />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.menuItemText}>Cấu trúc cơ sở dữ liệu</Text>
+                                        <Text style={styles.menuItemSub}>{dbInfo.tables} Tables · SQLite Local</Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={ShopifyTheme.colors.textMuted} />
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => handleUtilityAction('Thiết lập')}
+                        >
                             <View style={styles.menuItemLeft}>
                                 <View style={styles.menuIconBox}>
-                                    <Ionicons name="settings-outline" size={20} color="#FFF" />
+                                    <Ionicons name="options-outline" size={20} color="#FFF" />
                                 </View>
-                                <Text style={styles.menuItemText}>Thiết lập tài khoản</Text>
+                                <View>
+                                    <Text style={styles.menuItemText}>Thiết lập hệ thống</Text>
+                                    <Text style={styles.menuItemSub}>Tùy chỉnh giao diện và ngôn ngữ</Text>
+                                </View>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={ShopifyTheme.colors.textMuted} />
                         </TouchableOpacity>
@@ -124,7 +179,7 @@ export const ProfileScreen: React.FC = () => {
                                 <View style={[styles.menuIconBox, { backgroundColor: 'rgba(255, 69, 58, 0.1)' }]}>
                                     <Ionicons name="log-out-outline" size={20} color="#FF453A" />
                                 </View>
-                                <Text style={[styles.menuItemText, { color: '#FF453A' }]}>Đăng xuất</Text>
+                                <Text style={[styles.menuItemText, { color: '#FF453A' }]}>Đăng xuất khỏi hệ thống</Text>
                             </View>
                         </TouchableOpacity>
                     </View>
@@ -215,15 +270,16 @@ const styles = StyleSheet.create({
     menuTitle: { color: ShopifyTheme.colors.textMuted, fontSize: 11, fontWeight: '900', letterSpacing: 2, marginBottom: 24 },
     menuItem: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
+        paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
     },
-    menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 },
     menuIconBox: {
-        width: 40, height: 40, borderRadius: 12,
+        width: 44, height: 44, borderRadius: 14,
         backgroundColor: 'rgba(255,255,255,0.05)',
         alignItems: 'center', justifyContent: 'center',
     },
-    menuItemText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+    menuItemText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+    menuItemSub: { color: ShopifyTheme.colors.textMuted, fontSize: 12, marginTop: 2 },
     footer: { alignItems: 'center', marginTop: 40, gap: 20 },
     romanGroup: { flexDirection: 'row', gap: 20 },
     roman: { color: 'rgba(255,255,255,0.1)', fontSize: 14, fontWeight: '900', letterSpacing: 4 },
