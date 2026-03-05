@@ -9,6 +9,7 @@ import { useOrder } from '../../context/OrderContext';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 
 import { Order, OrderItem } from '../../types';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const AdminOrderListScreen: React.FC = () => {
     const { orders, fetchOrders, isLoading, fetchOrderItems } = useOrder();
@@ -19,15 +20,17 @@ export const AdminOrderListScreen: React.FC = () => {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [loadingItems, setLoadingItems] = useState(false);
 
-    useEffect(() => {
-        fetchOrders();
-    }, [fetchOrders]);
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchOrders();
+        }, [fetchOrders])
+    );
 
     const filteredAndSorted = orders
         .filter(o =>
             o.id.toString().includes(search) ||
-            o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-            o.customerEmail?.toLowerCase().includes(search.toLowerCase())
+            (o.customerName?.toLowerCase() || '').includes(search.toLowerCase()) ||
+            (o.customerEmail?.toLowerCase() || '').includes(search.toLowerCase())
         )
         .sort((a, b) => {
             if (sortBy === 'date') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();

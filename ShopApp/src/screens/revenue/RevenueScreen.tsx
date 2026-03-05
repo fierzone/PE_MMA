@@ -1,17 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Platform, Alert, Dimensions, StatusBar
+    View, Text, StyleSheet, ScrollView, SafeAreaView,
+    TouchableOpacity, Platform, Alert, Dimensions, StatusBar, ActivityIndicator
 } from 'react-native';
 import { useOrder } from '../../context/OrderContext';
 import { Ionicons } from '@expo/vector-icons';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 export const RevenueScreen: React.FC = () => {
     const {
-        stats, fetchStats, isLoading, getTopSpenders, getActiveUsersCount, getTopProducts, getRevenueByPeriod
+        stats, fetchStats, isLoading,
+        getTopSpenders, getActiveUsersCount, getTopProducts, getRevenueByPeriod
     } = useOrder();
 
     const [period, setPeriod] = useState<'24h' | '7d' | '30d' | 'all'>('all');
@@ -19,52 +22,64 @@ export const RevenueScreen: React.FC = () => {
     const [topProducts, setTopProducts] = useState<any[]>([]);
     const [revenueHistory, setRevenueHistory] = useState<any[]>([]);
     const [activeUsers, setActiveUsers] = useState(0);
+    const [extraLoading, setExtraLoading] = useState(false);
 
-    useEffect(() => {
-        const loadAll = async () => {
-            await fetchStats(period);
-            await loadExtraData();
-        };
-        loadAll();
-    }, [fetchStats, period]);
+    // ── Load analytics data ──────────────────────────────────────────────────
+    const loadExtraData = useCallback(async () => {
+        setExtraLoading(true);
+        try {
+            const [spenders, products, revenue, count] = await Promise.all([
+                getTopSpenders(),
+                getTopProducts(),
+                getRevenueByPeriod('day'),
+                getActiveUsersCount(),
+            ]);
 
-    const loadExtraData = async () => {
-        const [spenders, products, revenue, count] = await Promise.all([
-            getTopSpenders(),
-            getTopProducts(),
-            getRevenueByPeriod('day'),
-            getActiveUsersCount()
-        ]);
+            // Fill last 7 days với 0 nếu không có data
+            const last7Days: { period: string; amount: number }[] = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const match = revenue.find(r => r.period === dateStr);
+                last7Days.push({ period: dateStr, amount: match?.amount ?? 0 });
+            }
 
-        // Fill gaps for last 7 days
-        const last7Days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
-            const matching = revenue.find(r => r.period === dateStr);
-            last7Days.push({
-                period: dateStr,
-                amount: matching ? matching.amount : 0
-            });
+            setTopSpenders(spenders);
+            setTopProducts(products.slice(0, 5));
+            setRevenueHistory(last7Days);
+            setActiveUsers(count);
+        } catch (e) {
+            console.error('[Revenue] loadExtraData error:', e);
+        } finally {
+            setExtraLoading(false);
         }
+    }, [getTopSpenders, getTopProducts, getRevenueByPeriod, getActiveUsersCount]);
 
-        setTopSpenders(spenders);
-        setTopProducts(products.slice(0, 5));
-        setRevenueHistory(last7Days);
-        setActiveUsers(count);
-    };
+    // Chạy khi period thay đổi
+    useEffect(() => {
+        fetchStats(period);
+        loadExtraData();
+    }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Chạy khi tab được focus (admin quay lại tab)
+    useFocusEffect(
+        useCallback(() => {
+            fetchStats(period);
+            loadExtraData();
+        }, [period, fetchStats, loadExtraData])
+    );
 
     const handlePeriodChange = () => {
         Alert.alert(
-            "CHỌN KHOẢNG THỜI GIAN",
-            "Dữ liệu thống kê sẽ được cập nhật theo lựa chọn của bạn.",
+            'CHỌN KHOẢNG THỜI GIAN',
+            'Dữ liệu thống kê sẽ được cập nhật theo lựa chọn.',
             [
-                { text: "24 GIỜ QUA", onPress: () => setPeriod('24h') },
-                { text: "7 NGÀY QUA", onPress: () => setPeriod('7d') },
-                { text: "30 NGÀY QUA", onPress: () => setPeriod('30d') },
-                { text: "TẤT CẢ", onPress: () => setPeriod('all') },
-                { text: "HỦY", style: "cancel" }
+                { text: '24 GIỜ QUA', onPress: () => setPeriod('24h') },
+                { text: '7 NGÀY QUA', onPress: () => setPeriod('7d') },
+                { text: '30 NGÀY QUA', onPress: () => setPeriod('30d') },
+                { text: 'TẤT CẢ', onPress: () => setPeriod('all') },
+                { text: 'HỦY', style: 'cancel' },
             ]
         );
     };
@@ -72,9 +87,9 @@ export const RevenueScreen: React.FC = () => {
     const totalRevenue = stats?.totalRevenue ?? 0;
     const orderCount = stats?.orderCount ?? 0;
 
-    // Simple Custom Bar Chart Component
-    const MiniBarChart = ({ data, color }: { data: any[], color: string }) => {
-        const max = Math.max(...data.map(d => d.amount || d.quantity || 1));
+    // ── Mini Bar Chart ───────────────────────────────────────────────────────
+    const MiniBarChart = ({ data, color }: { data: any[]; color: string }) => {
+        const maxVal = Math.max(...data.map(d => d.amount || d.quantity || 1), 1);
         return (
             <View style={styles.chartContainer}>
                 {data.map((item, i) => (
@@ -82,12 +97,14 @@ export const RevenueScreen: React.FC = () => {
                         <View style={[
                             styles.chartBar,
                             {
-                                height: `${((item.amount || item.quantity) / max) * 100}%`,
-                                backgroundColor: color
+                                height: `${Math.max(((item.amount || item.quantity) / maxVal) * 100, 2)}%`,
+                                backgroundColor: color,
                             }
                         ]} />
                         <Text style={styles.chartLabel} numberOfLines={1}>
-                            {item.period ? item.period.split('-').pop() : item.name.split(' ')[0]}
+                            {item.period
+                                ? item.period.slice(5)  // MM-DD
+                                : item.name?.split(' ')[0] ?? ''}
                         </Text>
                     </View>
                 ))}
@@ -95,353 +112,257 @@ export const RevenueScreen: React.FC = () => {
         );
     };
 
+    const periodLabel = { '24h': '24 GIỜ QUA', '7d': '7 NGÀY QUA', '30d': '30 NGÀY QUA', 'all': 'TẤT CẢ' }[period];
+    const loadingAny = isLoading || extraLoading;
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-                <View style={styles.content}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                    <Text style={styles.chapterMarker}>CHAPTER VIII · ANALYTICS</Text>
-
-                    <View style={styles.heroHeader}>
-                        <Text style={styles.heroTitle}>Trung Tâm</Text>
-                        <Text style={styles.heroTitleAccent}>Điều Hành.</Text>
-                        <Text style={styles.heroDesc}>
-                            Phân tích dữ liệu thời gian thực cho thấy sự tăng trưởng của kỷ nguyên AI.
-                        </Text>
-                    </View>
-
-                    <View style={styles.filterRow}>
-                        <TouchableOpacity style={styles.pillBtn} onPress={handlePeriodChange}>
-                            <Text style={styles.pillBtnText}>{period.toUpperCase()} PERFORMANCE</Text>
-                            <Ionicons name="filter-outline" size={16} color="#000" />
-                        </TouchableOpacity>
-                        <View style={styles.romanGroup}>
-                            <Text style={styles.roman}>I</Text>
-                            <Text style={styles.roman}>II</Text>
-                            <Text style={styles.romanActive}>III</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.statsGrid}>
-                        <LinearGradient colors={['#111827', '#0F172A']} style={styles.statsCard}>
-                            <Text style={styles.cardTag}>TỔNG DOANH THU</Text>
-                            <Text style={styles.megaValue}>${totalRevenue.toLocaleString()}</Text>
-                            <View style={styles.trendingRow}>
-                                <Ionicons name="trending-up" size={16} color={ShopifyTheme.colors.accent} />
-                                <Text style={styles.trendingText}>TĂNG TRƯỞNG ỔN ĐỊNH</Text>
-                            </View>
-                        </LinearGradient>
-
-                        <LinearGradient colors={['#111827', '#000000']} style={styles.statsCard}>
-                            <Text style={styles.cardTag}>SỐ LƯỢNG ĐƠN HÀNG</Text>
-                            <Text style={styles.megaValue}>{orderCount}</Text>
-                            <Text style={styles.cardDescMini}>Tổng số giao dịch thành công trong hệ thống.</Text>
-                        </LinearGradient>
-                    </View>
-
-                    {/* Charts Section */}
-                    <View style={styles.statsGrid}>
-                        <View style={[styles.statsCard, { backgroundColor: 'rgba(255,255,255,0.03)' }]}>
-                            <Text style={styles.cardTag}>XU HƯỚNG DOANH THU (7 NGÀY)</Text>
-                            {revenueHistory.length > 0 ? (
-                                <MiniBarChart data={revenueHistory} color={ShopifyTheme.colors.accent} />
-                            ) : (
-                                <Text style={styles.emptyChart}>Đang cập nhật dữ liệu...</Text>
-                            )}
-                        </View>
-
-                        <View style={[styles.statsCard, { backgroundColor: 'rgba(255,255,255,0.03)' }]}>
-                            <Text style={styles.cardTag}>GÓI AI BÁN CHẠY NHẤT</Text>
-                            {topProducts.length > 0 ? (
-                                <MiniBarChart data={topProducts} color="#A78BFA" />
-                            ) : (
-                                <Text style={styles.emptyChart}>Chưa có dữ liệu bán hàng</Text>
-                            )}
-                        </View>
-                    </View>
-
-                    <View style={styles.sectionBlock}>
-                        <Text style={styles.sectionHeading}>Khách Hàng Hoạt Động</Text>
-                        <View style={styles.tableContainer}>
-                            <View style={styles.tableHead}>
-                                <Text style={styles.th}>DANH TÍNH</Text>
-                                <Text style={styles.th}>ĐƠN HÀNG</Text>
-                                <Text style={[styles.th, { textAlign: 'right' }]}>TỔNG CHI</Text>
-                            </View>
-                            {topSpenders.map((s, idx) => (
-                                <View key={idx} style={styles.tr}>
-                                    <View style={styles.tdIdent}>
-                                        <View style={styles.avatarPill}>
-                                            <Text style={styles.avatarText}>{s.name[0]}</Text>
-                                        </View>
-                                        <View>
-                                            <Text style={styles.tdName}>{s.name}</Text>
-                                            <Text style={styles.tdEmail}>{s.email}</Text>
-                                        </View>
-                                    </View>
-                                    <Text style={styles.tdCount}>{s.orderCount} đơn</Text>
-                                    <Text style={styles.tdAmount}>${s.totalSpent.toFixed(2)}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-
-                    <View style={styles.footer}>
-                        <Text style={styles.footerText}>AI SHOP ANALYTICS ENGINE · 2026</Text>
-                    </View>
-
+                {/* ── Header ── */}
+                <View style={styles.headerSection}>
+                    <Text style={styles.chapterTag}>CHAPTER I · COMMAND CENTER</Text>
+                    <Text style={styles.pageTitle}>Revenue</Text>
+                    <Text style={styles.pageTitleAccent}>Analytics.</Text>
+                    <TouchableOpacity style={styles.periodBtn} onPress={handlePeriodChange}>
+                        <Ionicons name="options-outline" size={14} color={ShopifyTheme.colors.accent} />
+                        <Text style={styles.periodBtnText}>{periodLabel}</Text>
+                        <Ionicons name="chevron-down" size={12} color={ShopifyTheme.colors.textMuted} />
+                    </TouchableOpacity>
                 </View>
+
+                {/* ── KPI Cards ── */}
+                {loadingAny ? (
+                    <View style={styles.loadingBox}>
+                        <ActivityIndicator color={ShopifyTheme.colors.accent} size="large" />
+                        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+                    </View>
+                ) : (
+                    <>
+                        <View style={styles.kpiRow}>
+                            <LinearGradient colors={['#0D2B22', '#000']} style={[styles.kpiCard, styles.kpiCardWide]}>
+                                <Text style={styles.kpiLabel}>TỔNG DOANH THU</Text>
+                                <Text style={styles.kpiRevenue}>
+                                    ${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                                </Text>
+                                <Text style={styles.kpiSub}>{orderCount} giao dịch</Text>
+                            </LinearGradient>
+                            <View style={styles.kpiSmallCol}>
+                                <View style={[styles.kpiCard, styles.kpiCardSmall]}>
+                                    <Text style={styles.kpiLabel}>ĐƠN HÀNG</Text>
+                                    <Text style={styles.kpiNumLarge}>{orderCount}</Text>
+                                </View>
+                                <View style={[styles.kpiCard, styles.kpiCardSmall]}>
+                                    <Text style={styles.kpiLabel}>NGƯỜI DÙNG</Text>
+                                    <Text style={styles.kpiNumLarge}>{activeUsers}</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* ── Revenue Chart ── */}
+                        <View style={styles.sectionCard}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Doanh Thu 7 Ngày</Text>
+                                <Ionicons name="trending-up" size={16} color={ShopifyTheme.colors.accent} />
+                            </View>
+                            {revenueHistory.every(d => d.amount === 0) ? (
+                                <Text style={styles.noDataText}>Chưa có giao dịch trong khoảng thời gian này.</Text>
+                            ) : (
+                                <MiniBarChart data={revenueHistory} color={ShopifyTheme.colors.accent} />
+                            )}
+                        </View>
+
+                        {/* ── Top Products ── */}
+                        {topProducts.length > 0 && (
+                            <View style={styles.sectionCard}>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={styles.sectionTitle}>Sản Phẩm Bán Chạy</Text>
+                                    <Ionicons name="star-outline" size={16} color="#A78BFA" />
+                                </View>
+                                <MiniBarChart data={topProducts} color="#A78BFA" />
+                            </View>
+                        )}
+
+                        {/* ── Top Spenders ── */}
+                        {topSpenders.length > 0 && (
+                            <View style={styles.sectionCard}>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={styles.sectionTitle}>Khách Hàng Top</Text>
+                                    <Ionicons name="people-outline" size={16} color="#60A5FA" />
+                                </View>
+                                {topSpenders.map((s, i) => (
+                                    <View key={i} style={styles.spenderRow}>
+                                        <View style={styles.spenderRank}>
+                                            <Text style={styles.spenderRankText}>{i + 1}</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.spenderName}>{s.name}</Text>
+                                            <Text style={styles.spenderEmail}>{s.email} · {s.orderCount} đơn</Text>
+                                        </View>
+                                        <Text style={styles.spenderAmount}>${s.totalSpent?.toFixed(0)}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+
+                        {/* ── Empty state khi chưa có data ── */}
+                        {topSpenders.length === 0 && topProducts.length === 0 && (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="analytics-outline" size={60} color="rgba(255,255,255,0.05)" />
+                                <Text style={styles.emptyTitle}>Chưa có đơn hàng</Text>
+                                <Text style={styles.emptyText}>Dữ liệu sẽ hiện ở đây khi có giao dịch từ khách hàng.</Text>
+                            </View>
+                        )}
+                    </>
+                )}
             </ScrollView>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: ShopifyTheme.colors.background,
-    },
-    scroll: { flex: 1 },
-    content: {
+    container: { flex: 1, backgroundColor: '#000' },
+    scrollContent: { paddingBottom: 60 },
+
+    headerSection: {
         paddingHorizontal: 32,
-        paddingTop: 80,
-        paddingBottom: 60,
-        maxWidth: 1200,
-        alignSelf: 'center',
-        width: '100%',
+        paddingTop: 60,
+        paddingBottom: 40,
     },
-    chapterMarker: {
+    chapterTag: {
         color: ShopifyTheme.colors.textMuted,
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 2,
-        marginBottom: 40,
+        fontSize: 10, fontWeight: '900',
+        letterSpacing: 2, marginBottom: 16,
     },
-    heroHeader: {
-        marginBottom: 60,
+    pageTitle: {
+        color: '#FFF', fontSize: 52, fontWeight: '900',
+        letterSpacing: -2, lineHeight: 52,
     },
-    heroTitle: {
-        color: '#FFF',
-        fontSize: 64,
-        fontWeight: '900',
-        letterSpacing: -2,
+    pageTitleAccent: {
+        color: ShopifyTheme.colors.accent, fontSize: 52, fontWeight: '900',
+        letterSpacing: -3, lineHeight: 52, marginBottom: 32,
     },
-    heroTitleAccent: {
-        color: ShopifyTheme.colors.accent,
-        fontSize: 64,
-        fontWeight: '900',
-        letterSpacing: -4,
-    },
-    heroDesc: {
-        color: ShopifyTheme.colors.textMuted,
-        fontSize: 18,
-        lineHeight: 28,
-        marginTop: 20,
-        maxWidth: 500,
-        fontWeight: '500',
-    },
-    filterRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 40,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.05)',
-        paddingBottom: 24,
-    },
-    pillBtn: {
-        backgroundColor: '#FFF',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 100,
-        gap: 10,
-    },
-    pillBtnText: {
-        color: '#000',
-        fontWeight: '900',
-        fontSize: 12,
-        letterSpacing: 0.5,
-    },
-    romanGroup: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    roman: {
-        color: ShopifyTheme.colors.textMuted,
-        fontWeight: '900',
-        fontSize: 12,
-        letterSpacing: 2,
-    },
-    romanActive: {
-        color: ShopifyTheme.colors.accent,
-        fontWeight: '900',
-        fontSize: 12,
-        letterSpacing: 2,
-    },
-    statsGrid: {
-        flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-        gap: 24,
-        marginBottom: 80,
-    },
-    statsCard: {
-        flex: 1,
-        borderRadius: 32,
-        padding: 40,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    cardHeader: {
-        marginBottom: 20,
-    },
-    cardTag: {
-        color: ShopifyTheme.colors.accent,
-        fontSize: 11,
-        fontWeight: '900',
-        letterSpacing: 2,
-    },
-    megaValue: {
-        color: '#FFF',
-        fontSize: 56,
-        fontWeight: '900',
-        letterSpacing: -2,
-    },
-    trendingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 16,
-    },
-    trendingText: {
-        color: ShopifyTheme.colors.accent,
-        fontSize: 12,
-        fontWeight: '800',
-    },
-    cardDescMini: {
-        color: ShopifyTheme.colors.textMuted,
-        fontSize: 14,
-        marginTop: 12,
-        lineHeight: 20,
-    },
-    sectionBlock: {
-        marginBottom: 80,
-    },
-    sectionHeading: {
-        color: '#FFF',
-        fontSize: 32,
-        fontWeight: '900',
-        letterSpacing: -1,
-        marginBottom: 32,
-    },
-    tableContainer: {
+    periodBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        alignSelf: 'flex-start',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 100, paddingHorizontal: 20, paddingVertical: 12,
         backgroundColor: 'rgba(255,255,255,0.02)',
-        borderRadius: 24,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
     },
-    tableHead: {
-        flexDirection: 'row',
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)',
-        marginBottom: 16,
+    periodBtnText: {
+        color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 1,
     },
-    th: {
+
+    loadingBox: {
+        alignItems: 'center', justifyContent: 'center',
+        paddingVertical: 80, gap: 16,
+    },
+    loadingText: {
+        color: ShopifyTheme.colors.textMuted, fontSize: 13,
+    },
+
+    kpiRow: {
+        flexDirection: 'row', gap: 12,
+        paddingHorizontal: 16, marginBottom: 16,
+    },
+    kpiCard: {
+        backgroundColor: '#0D0D0D',
+        borderRadius: 28, padding: 28,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    },
+    kpiCardWide: { flex: 1.4 },
+    kpiSmallCol: { flex: 1, gap: 12 },
+    kpiCardSmall: {
+        flex: 1, padding: 20,
+        backgroundColor: '#0D0D0D',
+        borderRadius: 28, borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    kpiLabel: {
         color: ShopifyTheme.colors.textMuted,
-        fontSize: 10,
-        fontWeight: '900',
-        letterSpacing: 1,
-        flex: 1,
+        fontSize: 8, fontWeight: '900', letterSpacing: 1.5, marginBottom: 8,
     },
-    tr: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.03)',
-    },
-    tdIdent: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    avatarPill: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: ShopifyTheme.colors.accent,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    avatarText: {
-        color: '#000',
-        fontWeight: '900',
-        fontSize: 14,
-    },
-    tdName: {
-        color: '#FFF',
-        fontWeight: '800',
-        fontSize: 14,
-    },
-    tdEmail: {
-        color: ShopifyTheme.colors.textMuted,
-        fontSize: 11,
-    },
-    tdCount: {
-        color: '#FFF',
-        fontSize: 14,
-        fontWeight: '700',
-        flex: 1,
-    },
-    tdAmount: {
+    kpiRevenue: {
         color: ShopifyTheme.colors.accent,
-        fontSize: 16,
-        fontWeight: '900',
-        textAlign: 'right',
-        flex: 1,
+        fontSize: 34, fontWeight: '900', letterSpacing: -1,
     },
-    footer: {
-        alignItems: 'center',
-        marginTop: 40,
+    kpiSub: {
+        color: 'rgba(255,255,255,0.3)',
+        fontSize: 11, marginTop: 4,
     },
-    footerText: {
-        color: 'rgba(255,255,255,0.1)',
-        fontSize: 9,
-        fontWeight: '800',
-        letterSpacing: 2,
+    kpiNumLarge: {
+        color: '#FFF', fontSize: 28, fontWeight: '900',
     },
+
+    sectionCard: {
+        marginHorizontal: 16, marginBottom: 16,
+        backgroundColor: '#0D0D0D',
+        borderRadius: 28, padding: 28,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    },
+    sectionHeader: {
+        flexDirection: 'row', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 24,
+    },
+    sectionTitle: {
+        color: '#FFF', fontSize: 14, fontWeight: '800',
+    },
+
     chartContainer: {
-        flexDirection: 'row',
-        height: 120,
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        marginTop: 24,
-        paddingHorizontal: 10,
+        flexDirection: 'row', height: 100,
+        alignItems: 'flex-end', gap: 6,
     },
     chartColumn: {
-        alignItems: 'center',
-        flex: 1,
-        gap: 8,
+        flex: 1, alignItems: 'center', gap: 6, height: '100%',
+        justifyContent: 'flex-end',
     },
     chartBar: {
-        width: 12,
-        borderRadius: 6,
-        minHeight: 4,
+        width: '100%', borderRadius: 4, minHeight: 4,
     },
     chartLabel: {
-        color: 'rgba(255,255,255,0.3)',
-        fontSize: 9,
-        fontWeight: '700',
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 8, fontWeight: '700',
     },
-    emptyChart: {
+
+    noDataText: {
         color: 'rgba(255,255,255,0.2)',
-        fontSize: 12,
-        fontStyle: 'italic',
-        marginTop: 40,
-        textAlign: 'center',
+        fontSize: 13, textAlign: 'center', paddingVertical: 24,
+    },
+
+    spenderRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingVertical: 14, gap: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.04)',
+    },
+    spenderRank: {
+        width: 28, height: 28, borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    spenderRankText: {
+        color: '#FFF', fontSize: 11, fontWeight: '900',
+    },
+    spenderName: {
+        color: '#FFF', fontSize: 13, fontWeight: '700',
+    },
+    spenderEmail: {
+        color: ShopifyTheme.colors.textMuted, fontSize: 11, marginTop: 2,
+    },
+    spenderAmount: {
+        color: ShopifyTheme.colors.accent,
+        fontSize: 15, fontWeight: '900',
+    },
+
+    emptyState: {
+        alignItems: 'center', padding: 48, gap: 12,
+    },
+    emptyTitle: {
+        color: 'rgba(255,255,255,0.3)', fontSize: 16, fontWeight: '800',
+    },
+    emptyText: {
+        color: 'rgba(255,255,255,0.2)', fontSize: 13,
+        textAlign: 'center', maxWidth: 260, lineHeight: 20,
     },
 });
