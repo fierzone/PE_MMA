@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+    View, Text, StyleSheet, ScrollView, SafeAreaView,
+    KeyboardAvoidingView, Platform, Alert, TouchableOpacity, StatusBar
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { useProduct } from '../../context/ProductContext';
-import { FormInput } from '../../components/FormInput';
-import { Button } from '../../components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { Tier } from '../../types';
+import { ShopifyTheme } from '../../theme/ShopifyTheme';
+import { FormInput } from '../../components/FormInput';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductForm'>;
 
@@ -24,7 +27,7 @@ export const ProductFormScreen: React.FC<Props> = ({ route, navigation }) => {
 
     const handleSubmit = async () => {
         if (!name || !price || !tier) {
-            Alert.alert('Lỗi', 'Vui lòng điền đầy đủ các thông tin bắt buộc.');
+            Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ các thông tin bắt buộc (*).');
             return;
         }
 
@@ -48,7 +51,7 @@ export const ProductFormScreen: React.FC<Props> = ({ route, navigation }) => {
             if (success) {
                 navigation.goBack();
             } else {
-                Alert.alert('Lỗi', 'Không thể lưu sản phẩm.');
+                Alert.alert('Lỗi', 'Không thể lưu bản ghi vào hệ thống.');
             }
         } catch (e) {
             Alert.alert('Lỗi', 'Đã xảy ra lỗi không xác định.');
@@ -59,65 +62,82 @@ export const ProductFormScreen: React.FC<Props> = ({ route, navigation }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
-            >
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>{isEditing ? 'Cập nhật Dịch vụ' : 'Dịch vụ Mới'}</Text>
-                        <Text style={styles.subtitle}>Niêm yết giải pháp AI mới lên thị trường</Text>
-                    </View>
+            <StatusBar barStyle="light-content" />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
 
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Ionicons name="close" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    <Text style={styles.chapterMarker}>INVENTORY MANAGEMENT</Text>
+                    <Text style={styles.title}>{isEditing ? 'Cập Nhật' : 'Tạo Mới'}</Text>
+                    <Text style={styles.titleAccent}>Sản Phẩm.</Text>
+                </View>
+
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     <View style={styles.form}>
+
                         <FormInput
-                            label="Tên dịch vụ *"
+                            label="TÊN SẢN PHẨM *"
                             value={name}
                             onChangeText={setName}
-                            placeholder="VD: OpenAI GPT-4"
+                            placeholder="VD: Smart Watch Pro"
                         />
+
                         <FormInput
-                            label="Mô tả"
+                            label="MÔ TẢ CHI TIẾT"
                             value={description}
                             onChangeText={setDescription}
-                            placeholder="Tổng quan ngắn gọn về dịch vụ"
-                            style={{ height: 100 }}
-                            inputStyle={{ textAlignVertical: 'top' }}
+                            placeholder="Nhập mô tả sản phẩm..."
+                            inputStyle={styles.textArea}
                         />
+
+                        <View style={styles.row}>
+                            <View style={{ flex: 1 }}>
+                                <FormInput
+                                    label="GIÁ NIÊM YẾT ($) *"
+                                    value={price}
+                                    onChangeText={setPrice}
+                                    placeholder="0.00"
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            <View style={[styles.inputGroup, { flex: 1 }]}>
+                                <Text style={styles.label}>PHÂN CẤP TIER *</Text>
+                                <View style={styles.tierPicker}>
+                                    {(['Basic', 'Pro', 'Premium'] as Tier[]).map((t) => (
+                                        <TouchableOpacity
+                                            key={t}
+                                            style={[styles.tierIconBtn, tier === t && styles.tierIconBtnActive]}
+                                            onPress={() => setTier(t)}
+                                        >
+                                            <Text style={[styles.tierIconText, tier === t && styles.tierIconTextActive]}>
+                                                {t[0]}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        </View>
+
                         <FormInput
-                            label="Giá ($) *"
-                            value={price}
-                            onChangeText={setPrice}
-                            placeholder="0.00"
-                            keyboardType="numeric"
-                        />
-                        <FormInput
-                            label="URL Hình ảnh"
+                            label="URL HÌNH ẢNH"
                             value={image}
                             onChangeText={setImage}
-                            placeholder="https://example.com/image.png"
+                            placeholder="https://..."
                             autoCapitalize="none"
                         />
 
-                        <Text style={styles.label}>Gói thuê bao *</Text>
-                        <View style={styles.tierContainer}>
-                            {(['Basic', 'Pro', 'Premium'] as Tier[]).map((t) => (
-                                <TouchableOpacity
-                                    key={t}
-                                    style={[styles.tierOption, tier === t && styles.tierOptionActive]}
-                                    onPress={() => setTier(t)}
-                                >
-                                    <Text style={[styles.tierText, tier === t && styles.tierTextActive]}>{t}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <Button
-                            title={isEditing ? 'Lưu Thay đổi' : 'Tạo Sản phẩm'}
+                        <TouchableOpacity
+                            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
                             onPress={handleSubmit}
-                            isLoading={loading}
-                            style={styles.submitBtn}
-                        />
+                            disabled={loading}
+                        >
+                            <Text style={styles.submitBtnText}>{loading ? 'ĐANG LƯU...' : 'HOÀN TẤT THAY ĐỔI'}</Text>
+                        </TouchableOpacity>
+
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -126,69 +146,30 @@ export const ProductFormScreen: React.FC<Props> = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F6F8F8',
+    container: { flex: 1, backgroundColor: '#000' },
+    header: { padding: 32, paddingTop: 60, backgroundColor: '#000' },
+    backBtn: { marginBottom: 24 },
+    chapterMarker: { color: ShopifyTheme.colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 16 },
+    title: { color: '#FFF', fontSize: 40, fontWeight: '900', letterSpacing: -1 },
+    titleAccent: { color: ShopifyTheme.colors.accent, fontSize: 40, fontWeight: '900', letterSpacing: -3, marginTop: -8 },
+    scrollContent: { paddingHorizontal: 32, paddingBottom: 60 },
+    form: { gap: 8 },
+    inputGroup: { marginBottom: 20 },
+    label: { color: ShopifyTheme.colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' },
+    textArea: { height: 120, paddingTop: 16, textAlignVertical: 'top' },
+    row: { flexDirection: 'row', gap: 20 },
+    tierPicker: { flexDirection: 'row', gap: 10, height: 56 },
+    tierIconBtn: {
+        flex: 1, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.04)',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+        alignItems: 'center', justifyContent: 'center',
     },
-    scrollContent: {
-        padding: 32,
-    },
-    header: {
-        marginBottom: 40,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: '#111617',
-        marginBottom: 8,
-        letterSpacing: -1,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#64748B',
-        fontWeight: '500',
-    },
-    form: {
-        width: '100%',
-    },
-    label: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#A1A1AA',
-        marginBottom: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    tierContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 40,
-    },
-    tierOption: {
-        flex: 1,
-        height: 48,
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-    },
-    tierOptionActive: {
-        borderColor: '#16869C',
-        backgroundColor: '#F0F9FB',
-    },
-    tierText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#64748B',
-    },
-    tierTextActive: {
-        color: '#16869C',
-        fontWeight: '700',
-    },
+    tierIconBtnActive: { backgroundColor: ShopifyTheme.colors.accent, borderColor: ShopifyTheme.colors.accent },
+    tierIconText: { color: 'rgba(255,255,255,0.3)', fontWeight: '900', fontSize: 14 },
+    tierIconTextActive: { color: '#000' },
     submitBtn: {
-        height: 60,
-        borderRadius: 4,
+        backgroundColor: '#FFF', height: 64, borderRadius: 100,
+        alignItems: 'center', justifyContent: 'center', marginTop: 20,
     },
+    submitBtnText: { color: '#000', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
 });

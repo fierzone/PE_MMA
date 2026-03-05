@@ -13,10 +13,7 @@ export const AdminUserListScreen: React.FC = () => {
     const db = useSQLiteContext();
     const [search, setSearch] = useState('');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [showResetModal, setShowResetModal] = useState(false);
-    const [newPassword, setNewPassword] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-    const [resetting, setResetting] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
 
     useEffect(() => {
         fetchUsers();
@@ -26,62 +23,6 @@ export const AdminUserListScreen: React.FC = () => {
         u.fullName.toLowerCase().includes(search.toLowerCase()) ||
         u.email.toLowerCase().includes(search.toLowerCase())
     );
-
-    const handleDelete = (user: User) => {
-        if (user.role === 'admin') {
-            Alert.alert('Không thể xóa', 'Tài khoản quản trị viên không thể bị xóa.');
-            return;
-        }
-        Alert.alert(
-            'Xóa người dùng',
-            `Xóa "${user.fullName}" (${user.email})? Hành động này không thể hoàn tác.`,
-            [
-                { text: 'Hủy', style: 'cancel' },
-                {
-                    text: 'Xóa', style: 'destructive',
-                    onPress: async () => {
-                        await deleteUser(user.id);
-                    }
-                },
-            ]
-        );
-    };
-
-    const handleResetPassword = async () => {
-        if (newPassword.length < 6) {
-            setPasswordError('Mật khẩu phải có ít nhất 6 ký tự.');
-            return;
-        }
-        setResetting(true);
-        const ok = await resetPassword(selectedUser!.id, newPassword);
-        setResetting(false);
-        if (ok) {
-            setShowResetModal(false);
-            setNewPassword('');
-            setSelectedUser(null);
-            Alert.alert('Thành công', 'Mật khẩu đã được đặt lại.');
-        } else {
-            setPasswordError('Không thể thực hiện. Hãy thử lại.');
-        }
-    };
-
-    const handleResetDatabase = () => {
-        Alert.alert(
-            '⚠️ Xóa tất cả khách hàng?',
-            'Hành động này sẽ xóa toàn bộ người dùng (trừ admin). Bạn chắc chắn?',
-            [
-                { text: 'Hủy', style: 'cancel' },
-                {
-                    text: 'Xóa', style: 'destructive',
-                    onPress: async () => {
-                        await db.runAsync("DELETE FROM Users WHERE role != 'admin'");
-                        await fetchUsers();
-                        Alert.alert('Xong', 'Tất cả khách hàng đã bị xóa.');
-                    }
-                },
-            ]
-        );
-    };
 
     const renderItem = ({ item }: { item: User }) => {
         const isAdminUser = item.role === 'admin';
@@ -114,18 +55,10 @@ export const AdminUserListScreen: React.FC = () => {
                         style={styles.actionBtn}
                         onPress={() => {
                             setSelectedUser(item);
-                            setNewPassword('');
-                            setPasswordError('');
-                            setShowResetModal(true);
+                            setShowDetailModal(true);
                         }}
                     >
-                        <Ionicons name="key-outline" size={15} color="rgba(255,255,255,0.6)" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.actionBtn, isAdminUser && styles.disabledBtn]}
-                        onPress={() => !isAdminUser && handleDelete(item)}
-                    >
-                        <Ionicons name="trash-outline" size={15} color={isAdminUser ? 'rgba(255,255,255,0.15)' : '#FF453A'} />
+                        <Ionicons name="eye-outline" size={18} color="rgba(255,255,255,0.7)" />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -154,17 +87,13 @@ export const AdminUserListScreen: React.FC = () => {
                             onChangeText={setSearch}
                         />
                     </View>
-                    <TouchableOpacity style={styles.dangerBtn} onPress={handleResetDatabase}>
-                        <Ionicons name="refresh-outline" size={16} color="#EF4444" />
-                        <Text style={styles.dangerBtnText}>Xóa hết</Text>
-                    </TouchableOpacity>
                 </View>
             </View>
 
             {/* Table header */}
             <View style={styles.tableHeader}>
                 <Text style={[styles.th, { flex: 5 }]}>USER</Text>
-                <Text style={[styles.th, { flex: 2, textAlign: 'right' }]}>ACTIONS</Text>
+                <Text style={[styles.th, { flex: 2, textAlign: 'right' }]}>DETAIL</Text>
             </View>
             <View style={styles.divider} />
 
@@ -191,48 +120,49 @@ export const AdminUserListScreen: React.FC = () => {
                 />
             )}
 
-            {/* Reset Password Modal */}
-            <Modal visible={showResetModal} transparent animationType="fade">
+            {/* Detail Modal */}
+            <Modal visible={showDetailModal} transparent animationType="fade">
                 <View style={styles.overlay}>
                     <View style={styles.modal}>
                         <View style={styles.modalHeader}>
                             <View>
-                                <Text style={styles.modalTitle}>Reset Password</Text>
-                                <Text style={styles.modalSub}>{selectedUser?.email}</Text>
+                                <Text style={styles.modalTitle}>Chi Tiết Khách Hàng</Text>
+                                <Text style={styles.modalSub}>ID: #{selectedUser?.id}</Text>
                             </View>
-                            <TouchableOpacity onPress={() => setShowResetModal(false)}>
+                            <TouchableOpacity onPress={() => setShowDetailModal(false)}>
                                 <Ionicons name="close" size={22} color="#64748B" />
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.modalBody}>
-                            <Text style={styles.inputLabel}>NEW PASSWORD</Text>
-                            <View style={[styles.inputWrap, passwordError ? styles.inputError : null]}>
-                                <Ionicons name="lock-closed-outline" size={16} color="#94A3B8" />
-                                <TextInput
-                                    style={styles.modalInput}
-                                    placeholder="Min. 6 characters"
-                                    placeholderTextColor="#94A3B8"
-                                    secureTextEntry
-                                    value={newPassword}
-                                    onChangeText={(t) => { setNewPassword(t); setPasswordError(''); }}
-                                />
+                            <View style={styles.detailGroup}>
+                                <Text style={styles.detailLabel}>HỌ VÀ TÊN</Text>
+                                <Text style={styles.detailValue}>{selectedUser?.fullName}</Text>
                             </View>
-                            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+
+                            <View style={styles.detailGroup}>
+                                <Text style={styles.detailLabel}>EMAIL</Text>
+                                <Text style={styles.detailValue}>{selectedUser?.email}</Text>
+                            </View>
+
+                            <View style={styles.detailGroup}>
+                                <Text style={styles.detailLabel}>LOẠI TÀI KHOẢN</Text>
+                                <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>
+                                    {selectedUser?.role === 'admin' ? 'Quản trị viên' : 'Khách hàng'}
+                                </Text>
+                            </View>
+
+                            <View style={styles.infoBox}>
+                                <Ionicons name="information-circle-outline" size={16} color="#94A3B8" />
+                                <Text style={styles.infoText}>
+                                    Bạn đang ở chế độ Chỉ Xem. Để thay đổi dữ liệu, hãy liên hệ với bộ phận kỹ thuật.
+                                </Text>
+                            </View>
                         </View>
 
                         <View style={styles.modalFooter}>
-                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowResetModal(false)}>
-                                <Text style={styles.cancelBtnText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.confirmBtn, resetting && { opacity: 0.7 }]}
-                                onPress={handleResetPassword}
-                                disabled={resetting}
-                            >
-                                <Text style={styles.confirmBtnText}>
-                                    {resetting ? 'Saving...' : 'Save Changes'}
-                                </Text>
+                            <TouchableOpacity style={styles.confirmBtn} onPress={() => setShowDetailModal(false)}>
+                                <Text style={styles.confirmBtnText}>Đã hiểu</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -503,4 +433,34 @@ const styles = StyleSheet.create({
         borderRadius: 100,
     },
     confirmBtnText: { fontSize: 13, fontWeight: '900', color: '#000', letterSpacing: 0.5 },
+    detailGroup: {
+        marginBottom: 20,
+    },
+    detailLabel: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: 'rgba(255,255,255,0.4)',
+        letterSpacing: 1.5,
+        marginBottom: 8,
+    },
+    detailValue: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#FFF',
+    },
+    infoBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: 'rgba(148,163,184,0.08)',
+        padding: 16,
+        borderRadius: 16,
+        marginTop: 10,
+    },
+    infoText: {
+        flex: 1,
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.4)',
+        lineHeight: 18,
+    },
 });

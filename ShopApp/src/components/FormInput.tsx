@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ViewStyle, TextStyle, Platform } from 'react-native';
+import { ShopifyTheme } from '../theme/ShopifyTheme';
 
 interface FormInputProps {
     label?: string;
@@ -43,7 +44,7 @@ export const FormInput: React.FC<FormInputProps> = ({
                     value={value}
                     onChangeText={onChangeText}
                     placeholder={placeholder}
-                    placeholderTextColor="#a1a1aa" // Gray 400
+                    placeholderTextColor="rgba(255,255,255,0.2)"
                     secureTextEntry={secureTextEntry}
                     keyboardType={keyboardType}
                     autoCapitalize={autoCapitalize}
@@ -64,33 +65,32 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     label: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#94A3B8', // Slate 400
-        marginBottom: 0,
-        position: 'absolute',
-        top: -18,
-        left: 0,
-        letterSpacing: 0.5,
+        fontSize: 10,
+        fontWeight: '900',
+        color: ShopifyTheme.colors.textMuted,
+        marginBottom: 10,
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
     },
     inputWrapper: {
-        height: 40,
-        backgroundColor: 'transparent',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0', // Slate 200
-        justifyContent: 'flex-end',
-        paddingBottom: 4,
+        height: 56,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        paddingHorizontal: 16,
+        justifyContent: 'center',
     },
     inputWrapperFocused: {
-        borderBottomColor: '#16869C', // Primary Teal
-        borderBottomWidth: 2,
+        borderColor: ShopifyTheme.colors.accent,
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     inputWrapperError: {
-        borderBottomColor: '#EF4444',
+        borderColor: '#EF4444',
     },
     input: {
         fontSize: 15,
-        color: '#0F172A', // Slate 900
+        color: '#FFF',
         fontWeight: '500',
         paddingVertical: 0,
         ...Platform.select({
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     errorText: {
         fontSize: 11,
         color: '#EF4444',
-        marginTop: 4,
+        marginTop: 6,
         fontWeight: '600',
     },
 });

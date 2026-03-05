@@ -3,7 +3,7 @@ import * as SQLite from 'expo-sqlite';
 
 import { Platform, Alert } from 'react-native';
 
-const DATABASE_NAME = 'todo.db';
+const DATABASE_NAME = 'shop.db';
 
 // Khởi tạo cơ sở dữ liệu và tạo bảng nếu chưa tồn tại
 export const initDatabase = async () => {

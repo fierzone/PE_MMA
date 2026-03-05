@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, TextInput,
-    KeyboardAvoidingView, Platform, ScrollView, SafeAreaView, Alert
+    KeyboardAvoidingView, Platform, ScrollView, SafeAreaView, Alert, StatusBar
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import * as SQLite from 'expo-sqlite';
+import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FormInput } from '../../components/FormInput';
 
 type Props = NativeStackScreenProps<any, 'Login'>;
 
@@ -15,165 +18,147 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [emailFocused, setEmailFocused] = useState(false);
-    const [passwordFocused, setPasswordFocused] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showPass, setShowPass] = useState(false);
+    const [remember, setRemember] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const SAVED_EMAIL_KEY = '@saved_login_email';
+
+    React.useEffect(() => {
+        const loadSavedEmail = async () => {
+            try {
+                const savedEmail = await AsyncStorage.getItem(SAVED_EMAIL_KEY);
+                if (savedEmail) {
+                    setEmail(savedEmail);
+                    setRemember(true);
+                }
+            } catch (e) {
+                console.error('Failed to load saved email', e);
+            }
+        };
+        loadSavedEmail();
+    }, []);
 
     const handleLogin = async () => {
         if (!email || !password) {
-            setError('Vui lòng nhập email và mật khẩu.');
+            setError('Vui lòng nhập đầy đủ thông tin.');
             return;
         }
         setLoading(true);
         setError(null);
         try {
-            const result = await login(email.trim(), password);
-            if (!result.success) {
-                setError(result.error || 'Email hoặc mật khẩu không đúng.');
+            const res = await login(email.trim(), password, remember);
+            if (!res.success) {
+                setError(res.error || 'Lỗi đăng nhập.');
+            } else {
+                if (remember) {
+                    await AsyncStorage.setItem(SAVED_EMAIL_KEY, email.trim());
+                } else {
+                    await AsyncStorage.removeItem(SAVED_EMAIL_KEY);
+                }
+                Toast.show({ type: 'success', text1: 'Đăng nhập thành công', text2: 'Chào mừng trở lại.' });
             }
-            // Navigation is handled automatically by AppNavigator once user state changes
         } catch (e) {
-            setError('Đã xảy ra lỗi. Vui lòng thử lại.');
+            setError('Không thể kết nối máy chủ.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleResetDB = () => {
-        Alert.alert(
-            'Xóa toàn bộ dữ liệu?',
-            'Hành động này sẽ xóa sạch tất cả Users, Orders và Cart. Dùng để test lại từ đầu.',
-            [
-                { text: 'Hủy', style: 'cancel' },
-                {
-                    text: 'Xóa sạch',
-                    style: 'destructive',
-                    onPress: async () => {
-                        const db = SQLite.openDatabaseSync('shop.db');
-                        await db.execAsync(
-                            'DROP TABLE IF EXISTS OrderItems; DROP TABLE IF EXISTS Orders; DROP TABLE IF EXISTS Cart; DROP TABLE IF EXISTS Users; DROP TABLE IF EXISTS Products;'
-                        );
-                        Toast.show({ type: 'success', text1: 'Đã xóa sạch DB', text2: 'Vui lòng reload lại trang.' });
-                    }
-                },
-            ]
-        );
+        Alert.alert('⚠️ Nguy hiểm', 'Bạn sắp xóa toàn bộ dữ liệu hệ thống (Users, Orders, Products).', [
+            { text: 'Hủy', style: 'cancel' },
+            {
+                text: 'Xóa ngay', style: 'destructive',
+                onPress: async () => {
+                    const db = SQLite.openDatabaseSync('shop.db');
+                    await db.execAsync('DROP TABLE IF EXISTS OrderItems; DROP TABLE IF EXISTS Orders; DROP TABLE IF EXISTS Cart; DROP TABLE IF EXISTS Users; DROP TABLE IF EXISTS Products;');
+                    Toast.show({ type: 'info', text1: 'Đã xóa DB', text2: 'Vui lòng khởi động lại app.' });
+                }
+            },
+        ]);
     };
 
     return (
-        <SafeAreaView style={styles.safe}>
-            {/* Top Bar */}
-            <View style={styles.topBar}>
-                <View style={styles.logoRow}>
-                    <Ionicons name="diamond" size={18} color="#16869C" />
-                    <Text style={styles.logoText}>Minimalist Prime</Text>
-                </View>
-                <Text style={styles.supportText}>Hỗ trợ</Text>
-            </View>
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="light-content" />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-                <ScrollView
-                    contentContainerStyle={styles.scroll}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                >
+                    <View style={styles.header}>
+                        <Text style={styles.chapterMarker}>CHAPTER I · ACCESS</Text>
+                        <Text style={styles.title}>Unified</Text>
+                        <Text style={styles.titleAccent}>Platform.</Text>
+                        <Text style={styles.subTitle}>Cổng truy cập dành cho cả khách hàng và quản trị viên hệ thống.</Text>
+                    </View>
+
                     <View style={styles.card}>
-                        {/* Header */}
-                        <View style={styles.cardHeader}>
-                            <View style={styles.logoBig}>
-                                <Ionicons name="diamond" size={28} color="#16869C" />
-                            </View>
-                            <Text style={styles.cardTitle}>Truy Cập Hệ Thống</Text>
-                            <Text style={styles.cardSubtitle}>Nhập thông tin để tiếp tục.</Text>
-                        </View>
-
-                        {/* Tabs */}
                         <View style={styles.tabs}>
-                            <View style={[styles.tab, styles.tabActive]}>
-                                <Text style={styles.tabTextActive}>Đăng Nhập</Text>
+                            <View style={styles.activeTab}>
+                                <Text style={styles.activeTabText}>ĐANG NHẬP</Text>
                             </View>
                             <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate('Register')}>
-                                <Text style={styles.tabText}>Đăng Ký</Text>
+                                <Text style={styles.tabText}>ĐĂNG KÝ</Text>
                             </TouchableOpacity>
                         </View>
 
-                        {/* Form */}
-                        <View style={styles.form}>
-                            {/* Email */}
-                            <View style={[styles.fieldGroup, emailFocused && styles.fieldGroupFocused]}>
-                                <Ionicons name="mail-outline" size={18} color={emailFocused ? '#16869C' : '#94A3B8'} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={email}
-                                    onChangeText={(t) => { setEmail(t); setError(null); }}
-                                    onFocus={() => setEmailFocused(true)}
-                                    onBlur={() => setEmailFocused(false)}
-                                    placeholder="Địa chỉ Email"
-                                    placeholderTextColor="#94A3B8"
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    autoComplete="email"
-                                />
+                        <FormInput
+                            label="DANH TÍNH (EMAIL)"
+                            placeholder="your@email.com"
+                            value={email}
+                            onChangeText={(t) => { setEmail(t); setError(null); }}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                        />
+
+                        <FormInput
+                            label="MẬT MÃ"
+                            placeholder="••••••••"
+                            value={password}
+                            onChangeText={(t) => { setPassword(t); setError(null); }}
+                            secureTextEntry={!showPass}
+                        />
+
+                        <TouchableOpacity
+                            style={styles.showPassBtn}
+                            onPress={() => setShowPass(!showPass)}
+                        >
+                            <Ionicons name={showPass ? 'eye-outline' : 'eye-off-outline'} size={18} color="rgba(255,255,255,0.3)" />
+                            <Text style={styles.showPassText}>{showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}</Text>
+                        </TouchableOpacity>
+
+                        {/* Remember Me */}
+                        <TouchableOpacity
+                            style={styles.rememberRow}
+                            onPress={() => setRemember(!remember)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.checkbox, remember && styles.checkboxActive]}>
+                                {remember && <Ionicons name="checkmark" size={12} color="#000" />}
                             </View>
+                            <Text style={styles.rememberText}>Ghi nhớ đăng nhập</Text>
+                        </TouchableOpacity>
 
-                            {/* Password */}
-                            <View style={[styles.fieldGroup, passwordFocused && styles.fieldGroupFocused]}>
-                                <Ionicons name="lock-closed-outline" size={18} color={passwordFocused ? '#16869C' : '#94A3B8'} />
-                                <TextInput
-                                    style={[styles.input, { flex: 1 }]}
-                                    value={password}
-                                    onChangeText={(t) => { setPassword(t); setError(null); }}
-                                    onFocus={() => setPasswordFocused(true)}
-                                    onBlur={() => setPasswordFocused(false)}
-                                    placeholder="Mật khẩu"
-                                    placeholderTextColor="#94A3B8"
-                                    secureTextEntry={!showPass}
-                                />
-                                <TouchableOpacity onPress={() => setShowPass(!showPass)}>
-                                    <Ionicons name={showPass ? 'eye-outline' : 'eye-off-outline'} size={18} color="#94A3B8" />
-                                </TouchableOpacity>
+                        {error && (
+                            <View style={styles.errorBox}>
+                                <Ionicons name="alert-circle-outline" size={16} color="#FF453A" />
+                                <Text style={styles.errorText}>{error}</Text>
                             </View>
+                        )}
 
-                            {/* Error */}
-                            {error && (
-                                <View style={styles.errorBox}>
-                                    <Ionicons name="alert-circle-outline" size={16} color="#EF4444" />
-                                    <Text style={styles.errorText}>{error}</Text>
-                                </View>
-                            )}
-
-                            {/* Submit */}
-                            <TouchableOpacity
-                                style={[styles.loginBtn, loading && { opacity: 0.7 }]}
-                                onPress={handleLogin}
-                                disabled={loading}
-                                activeOpacity={0.85}
-                            >
-                                {loading ? (
-                                    <Text style={styles.loginBtnText}>ĐANG XỬ LÝ...</Text>
-                                ) : (
-                                    <>
-                                        <Text style={styles.loginBtnText}>ĐĂNG NHẬP</Text>
-                                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.forgotRow}>
-                                <Text style={styles.forgotText}>Quên mật khẩu?</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Footer */}
-                    <View style={styles.footer}>
-                        <Text style={styles.footerText}>PHIÊN AN TOÀN · V2.0.4</Text>
-                        <TouchableOpacity onPress={handleResetDB} style={styles.resetBtn}>
-                            <Text style={styles.resetText}>[ DEV: RESET DB ]</Text>
+                        <TouchableOpacity style={[styles.loginBtn, loading && { opacity: 0.6 }]} onPress={handleLogin} disabled={loading}>
+                            <Text style={styles.loginBtnText}>{loading ? 'ĐANG XỬ LÝ...' : 'TIẾP TỤC →'}</Text>
                         </TouchableOpacity>
                     </View>
+
+                    <View style={styles.footer}>
+                        <TouchableOpacity onPress={handleResetDB} style={styles.devBtn}>
+                            <Text style={styles.devText}>[ DEVELOPMENT: RESET CORE SYSTEM ]</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.copyright}>© 2026 MINIMALIST PRIME · SECURE ACCESS</Text>
+                    </View>
+
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -181,70 +166,31 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#F6F8F8' },
-    flex: { flex: 1 },
-    topBar: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 24, paddingVertical: 16,
-    },
-    logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    logoText: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
-    supportText: { fontSize: 13, color: '#94A3B8' },
-    scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 40 },
-    card: {
-        width: '100%', maxWidth: 440, backgroundColor: '#FFFFFF', borderRadius: 16,
-        paddingHorizontal: Platform.OS === 'web' ? 48 : 28, paddingVertical: 36,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08, shadowRadius: 20, elevation: 6,
-    },
-    cardHeader: { alignItems: 'center', marginBottom: 24 },
-    logoBig: {
-        width: 56, height: 56, borderRadius: 16, backgroundColor: '#EFF9FB',
-        alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-    },
-    cardTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', letterSpacing: -1, marginBottom: 6 },
-    cardSubtitle: { fontSize: 14, color: '#64748B', textAlign: 'center' },
-    hintBox: {
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: '#EFF9FB', borderRadius: 8, padding: 12, marginBottom: 20,
-    },
-    hintText: { fontSize: 12, color: '#334155', flex: 1 },
-    hintBold: { fontWeight: '700', color: '#16869C' },
-    tabs: {
-        flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', marginBottom: 28,
-    },
-    tab: {
-        flex: 1, paddingBottom: 12, alignItems: 'center',
-        borderBottomWidth: 2, borderBottomColor: 'transparent',
-    },
-    tabActive: { borderBottomColor: '#16869C' },
-    tabText: { fontSize: 14, color: '#94A3B8', fontWeight: '500' },
-    tabTextActive: { fontSize: 14, color: '#0F172A', fontWeight: '700' },
-    form: { gap: 20 },
-    fieldGroup: {
-        flexDirection: 'row', alignItems: 'center', gap: 12,
-        borderBottomWidth: 1.5, borderBottomColor: '#E2E8F0', paddingBottom: 10,
-    },
-    fieldGroupFocused: { borderBottomColor: '#16869C' },
-    input: { flex: 1, fontSize: 15, color: '#0F172A', paddingVertical: 4 },
-    errorBox: {
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: '#FFF5F5', borderRadius: 8, padding: 12,
-        borderWidth: 1, borderColor: '#FECACA',
-    },
-    errorText: { fontSize: 13, color: '#EF4444', flex: 1 },
-    loginBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#0F172A', paddingVertical: 16, borderRadius: 8, gap: 8,
-    },
-    loginBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13, letterSpacing: 1 },
-    forgotRow: { alignItems: 'center' },
-    forgotText: { fontSize: 13, color: '#94A3B8' },
-    footer: { alignItems: 'center', gap: 12, marginTop: 32 },
-    footerText: {
-        fontSize: 10, color: '#CBD5E1', letterSpacing: 2,
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    },
-    resetBtn: { opacity: 0.5 },
-    resetText: { fontSize: 10, color: '#EF4444', fontWeight: '700', textDecorationLine: 'underline' },
+    container: { flex: 1, backgroundColor: '#000' },
+    scroll: { flexGrow: 1, paddingBottom: 60 },
+    header: { padding: 40, paddingTop: 60 },
+    chapterMarker: { color: ShopifyTheme.colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 24 },
+    title: { color: '#FFF', fontSize: 56, fontWeight: '900', letterSpacing: -2 },
+    titleAccent: { color: ShopifyTheme.colors.accent, fontSize: 56, fontWeight: '900', letterSpacing: -4, marginTop: -10 },
+    subTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 13, lineHeight: 20, marginTop: 20, fontWeight: '600' },
+    card: { marginHorizontal: 32, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 32, padding: 32, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+    tabs: { flexDirection: 'row', marginBottom: 32, gap: 20 },
+    activeTab: { borderBottomWidth: 1, borderBottomColor: ShopifyTheme.colors.accent, paddingBottom: 8 },
+    activeTabText: { color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+    tab: { paddingBottom: 8 },
+    tabText: { color: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+    rememberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 10 },
+    checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+    checkboxActive: { backgroundColor: ShopifyTheme.colors.accent, borderColor: ShopifyTheme.colors.accent },
+    rememberText: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '600' },
+    showPassBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24, alignSelf: 'flex-start' },
+    showPassText: { color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: '700' },
+    loginBtn: { backgroundColor: '#FFF', height: 60, borderRadius: 100, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+    loginBtnText: { color: '#000', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+    errorBox: { backgroundColor: 'rgba(255,69,58,0.1)', padding: 12, borderRadius: 12, marginBottom: 20, flexDirection: 'row', gap: 8, alignItems: 'center' },
+    errorText: { color: '#FF453A', fontSize: 12, fontWeight: '600' },
+    footer: { alignItems: 'center', marginTop: 40, gap: 16 },
+    devBtn: { padding: 10 },
+    devText: { color: 'rgba(255,255,255,0.1)', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+    copyright: { color: 'rgba(255,255,255,0.2)', fontSize: 9, fontWeight: '600', letterSpacing: 1 },
 });

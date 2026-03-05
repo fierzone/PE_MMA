@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { ShopifyTheme } from '../theme/ShopifyTheme';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -18,10 +19,11 @@ import { CustomerAccountScreen } from '../screens/customer/CustomerAccountScreen
 import { OrderHistoryScreen } from '../screens/customer/OrderHistoryScreen';
 
 // Admin Screens
-import { ProfileScreen } from '../screens/profile/ProfileScreen';           // Admin dashboard
-import { RevenueScreen } from '../screens/revenue/RevenueScreen';           // Admin analytics
+import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { RevenueScreen } from '../screens/revenue/RevenueScreen';
 import { AdminProductListScreen } from '../screens/admin/AdminProductListScreen';
 import { AdminUserListScreen } from '../screens/admin/AdminUserListScreen';
+import { AdminOrderListScreen } from '../screens/admin/AdminOrderListScreen';
 import { ProductFormScreen } from '../screens/products/ProductFormScreen';
 import { LandingScreen } from '../screens/LandingScreen';
 
@@ -32,7 +34,6 @@ const AuthStack = createNativeStackNavigator();
 const CustomerTab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
 
-// ─── Loading Screen ────────────────────────────────────────────────
 function LoadingScreen() {
     return (
         <View style={styles.loadingScreen}>
@@ -42,7 +43,6 @@ function LoadingScreen() {
     );
 }
 
-// ─── Auth Navigator ────────────────────────────────────────────────
 function AuthNavigator() {
     return (
         <AuthStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
@@ -52,7 +52,6 @@ function AuthNavigator() {
     );
 }
 
-// ─── Customer Tab Navigator ─────────────────────────────────────────
 function CustomerTabNavigator() {
     return (
         <CustomerTab.Navigator
@@ -80,37 +79,37 @@ function CustomerTabNavigator() {
     );
 }
 
-// ─── Admin Tab Navigator ────────────────────────────────────────────
 function AdminTabNavigator() {
     return (
         <AdminTab.Navigator
             screenOptions={({ route }) => ({
                 headerShown: false,
-                tabBarActiveTintColor: '#5EEAD4',
-                tabBarInactiveTintColor: 'rgba(255,255,255,0.3)',
+                tabBarActiveTintColor: '#FFF',
+                tabBarInactiveTintColor: 'rgba(255,255,255,0.2)',
                 tabBarStyle: adminTabBarStyle,
                 tabBarLabelStyle: tabLabelStyle,
                 tabBarIcon: ({ focused, color }) => {
                     const icons: Record<string, [string, string]> = {
-                        Dashboard: ['grid', 'grid-outline'],
-                        Analytics: ['podium', 'podium-outline'],
-                        Products: ['cube', 'cube-outline'],
-                        Customers: ['people', 'people-outline'],
+                        System: ['analytics', 'analytics-outline'],
+                        Inventory: ['cube', 'cube-outline'],
+                        Logistics: ['list', 'list-outline'],
+                        Users: ['people', 'people-outline'],
+                        Admin: ['shield-checkmark', 'shield-checkmark-outline'],
                     };
                     const [active, inactive] = icons[route.name] || ['circle', 'circle-outline'];
                     return <Ionicons name={(focused ? active : inactive) as any} size={22} color={color} />;
                 },
             })}
         >
-            <AdminTab.Screen name="Dashboard" component={ProfileScreen as any} options={{ title: 'Hồ sơ' }} />
-            <AdminTab.Screen name="Analytics" component={RevenueScreen as any} options={{ title: 'Doanh thu' }} />
-            <AdminTab.Screen name="Products" component={AdminProductListScreen as any} options={{ title: 'Sản phẩm' }} />
-            <AdminTab.Screen name="Customers" component={AdminUserListScreen as any} options={{ title: 'Khách hàng' }} />
+            <AdminTab.Screen name="System" component={RevenueScreen as any} options={{ title: 'Hệ thống' }} />
+            <AdminTab.Screen name="Inventory" component={AdminProductListScreen as any} options={{ title: 'Kho' }} />
+            <AdminTab.Screen name="Logistics" component={AdminOrderListScreen as any} options={{ title: 'Đơn hàng' }} />
+            <AdminTab.Screen name="Users" component={AdminUserListScreen as any} options={{ title: 'Khách' }} />
+            <AdminTab.Screen name="Admin" component={ProfileScreen as any} options={{ title: 'Quản trị' }} />
         </AdminTab.Navigator>
     );
 }
 
-// ─── Root Navigator ─────────────────────────────────────────────────
 export default function AppNavigator() {
     const { user, isLoading, isAdmin } = useAuth();
 
@@ -120,43 +119,18 @@ export default function AppNavigator() {
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
                 {!user ? (
-                    // Not logged in → Show Auth flow
                     <Stack.Screen name="Auth" component={AuthNavigator} />
                 ) : isAdmin ? (
-                    // Admin user → Show Admin flow
                     <>
                         <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
-                        <Stack.Screen
-                            name="ProductForm"
-                            component={ProductFormScreen as any}
-                            options={{ headerShown: true, title: 'Quản lý sản phẩm' }}
-                        />
-                        <Stack.Screen
-                            name="AdminProductList"
-                            component={AdminProductListScreen as any}
-                            options={{ headerShown: true, title: 'Kho sản phẩm' }}
-                        />
-                        <Stack.Screen
-                            name="AdminUserList"
-                            component={AdminUserListScreen as any}
-                            options={{ headerShown: true, title: 'Quản lý khách hàng' }}
-                        />
+                        <Stack.Screen name="ProductForm" component={ProductFormScreen as any} options={{ headerShown: true, title: 'Quản lý sản phẩm' }} />
                     </>
                 ) : (
-                    // Customer user → Show Customer flow
                     <>
                         <Stack.Screen name="Landing" component={LandingScreen as any} />
                         <Stack.Screen name="CustomerTabs" component={CustomerTabNavigator} />
-                        <Stack.Screen
-                            name="ProductDetail"
-                            component={ProductDetailScreen as any}
-                            options={{ headerShown: true, title: 'Chi tiết sản phẩm' }}
-                        />
-                        <Stack.Screen
-                            name="OrderHistory"
-                            component={OrderHistoryScreen as any}
-                            options={{ headerShown: false }}
-                        />
+                        <Stack.Screen name="ProductDetail" component={ProductDetailScreen as any} options={{ headerShown: false }} />
+                        <Stack.Screen name="OrderHistory" component={OrderHistoryScreen as any} options={{ headerShown: false }} />
                     </>
                 )}
             </Stack.Navigator>
@@ -171,26 +145,22 @@ const tabBarStyle = {
     backgroundColor: '#000000',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
-    elevation: 0,
-    shadowOpacity: 0,
 };
 
 const adminTabBarStyle = {
     height: 64,
     paddingBottom: 8,
     paddingTop: 8,
-    backgroundColor: '#000000',
+    backgroundColor: '#0A0A0A',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    elevation: 0,
-    shadowOpacity: 0,
+    borderTopColor: 'rgba(255,255,255,0.1)',
 };
 
 const tabLabelStyle = {
-    fontSize: 10,
-    fontWeight: '700' as const,
+    fontSize: 9,
+    fontWeight: '900' as const,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
 };
 
 const styles = StyleSheet.create({

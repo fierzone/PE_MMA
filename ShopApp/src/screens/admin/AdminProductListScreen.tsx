@@ -9,12 +9,16 @@ import { useProduct } from '../../context/ProductContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Product } from '../../types';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
+import Toast from 'react-native-toast-message';
+import { Modal } from 'react-native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AdminProductList'>;
 
 export const AdminProductListScreen: React.FC<Props> = ({ navigation }) => {
     const { products, fetchProducts, deleteProduct, isLoading } = useProduct();
     const [search, setSearch] = useState('');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
     useEffect(() => {
         fetchProducts();
@@ -25,14 +29,38 @@ export const AdminProductListScreen: React.FC<Props> = ({ navigation }) => {
     );
 
     const handleDelete = (item: Product) => {
-        Alert.alert(
-            'LƯU TRỮ CÔNG CỤ',
-            `Bạn có chắc chắn muốn lưu trữ "${item.name}"? Nó sẽ không còn xuất hiện công khai trên cửa hàng.`,
-            [
-                { text: 'HỦY', style: 'cancel' },
-                { text: 'LƯU TRỮ', style: 'destructive', onPress: () => deleteProduct(item.id) },
-            ]
-        );
+        setProductToDelete(item);
+        setShowDeleteModal(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!productToDelete) return;
+
+        try {
+            const success = await deleteProduct(productToDelete.id);
+            if (success) {
+                Toast.show({
+                    type: 'success',
+                    text1: 'Xóa thành công',
+                    text2: `Sản phẩm "${productToDelete.name}" đã được gỡ khỏi kho.`
+                });
+            } else {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Lỗi',
+                    text2: 'Không thể xóa sản phẩm vào lúc này.'
+                });
+            }
+        } catch (e) {
+            Toast.show({
+                type: 'error',
+                text1: 'Lỗi hệ thống',
+                text2: 'Vui lòng thử lại sau.'
+            });
+        } finally {
+            setShowDeleteModal(false);
+            setProductToDelete(null);
+        }
     };
 
     const renderItem = ({ item }: { item: Product }) => (
@@ -124,6 +152,39 @@ export const AdminProductListScreen: React.FC<Props> = ({ navigation }) => {
                     </View>
                 }
             />
+
+            {/* Custom Delete Confirmation Modal */}
+            <Modal visible={showDeleteModal} transparent animationType="fade">
+                <View style={styles.overlay}>
+                    <View style={styles.modal}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalIcon}>
+                                <Ionicons name="trash-outline" size={32} color="#FF453A" />
+                            </View>
+                            <Text style={styles.modalTitle}>Xác nhận xóa?</Text>
+                            <Text style={styles.modalDesc}>
+                                Bạn có chắc chắn muốn xóa sản phẩm <Text style={styles.modalHighlight}>"{productToDelete?.name}"</Text>?
+                                Hành động này không thể hoàn tác.
+                            </Text>
+
+                            <View style={styles.modalActions}>
+                                <TouchableOpacity
+                                    style={styles.cancelBtn}
+                                    onPress={() => setShowDeleteModal(false)}
+                                >
+                                    <Text style={styles.cancelBtnText}>HỦY BỎ</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.confirmBtn}
+                                    onPress={handleConfirmDelete}
+                                >
+                                    <Text style={styles.confirmBtnText}>XÁC NHẬN XÓA</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -297,5 +358,86 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '900',
         letterSpacing: 2,
+    },
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    modal: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: '#111827',
+        borderRadius: 32,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        overflow: 'hidden',
+    },
+    modalContent: {
+        padding: 32,
+        alignItems: 'center',
+    },
+    modalIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(255, 69, 58, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+    },
+    modalTitle: {
+        color: '#FFF',
+        fontSize: 20,
+        fontWeight: '900',
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    modalDesc: {
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 14,
+        lineHeight: 22,
+        textAlign: 'center',
+        marginBottom: 32,
+    },
+    modalHighlight: {
+        color: '#FFF',
+        fontWeight: '700',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    cancelBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cancelBtnText: {
+        color: 'rgba(255,255,255,0.5)',
+        fontWeight: '800',
+        fontSize: 12,
+        letterSpacing: 1,
+    },
+    confirmBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        backgroundColor: '#FF453A',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    confirmBtnText: {
+        color: '#FFF',
+        fontWeight: '900',
+        fontSize: 12,
+        letterSpacing: 1,
     },
 });

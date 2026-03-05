@@ -30,5 +30,6 @@ export type RootStackParamList = {
     ProductForm: { product?: Product };
     AdminProductList: undefined;
     AdminUserList: undefined;
+    AdminOrderList: undefined;
     OrderHistory: undefined;
 };

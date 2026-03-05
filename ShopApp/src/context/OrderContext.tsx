@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
-import { Order, CartItemDetailed } from '../types';
+import { Order, CartItemDetailed, OrderItem } from '../types';
 import { useAuth } from './AuthContext';
 
 interface OrderContextType {
@@ -12,7 +12,10 @@ interface OrderContextType {
     checkout: (items: CartItemDetailed[], total: number) => Promise<boolean>;
     getRevenueByPeriod: (period: 'day' | 'month' | 'year') => Promise<{ period: string; amount: number }[]>;
     getTopSpenders: () => Promise<{ name: string; email: string; totalSpent: number; orderCount: number }[]>;
+    getTopProducts: () => Promise<{ name: string; quantity: number }[]>;
     getActiveUsersCount: () => Promise<number>;
+    fetchOrderItems: (orderId: number) => Promise<OrderItem[]>;
+    fetchLicenses: () => Promise<any[]>;
 }
 
 const OrderContext = createContext<OrderContextType | null>(null);
@@ -30,7 +33,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         try {
             let rows: Order[];
             if (isAdmin) {
-                // Admin sees ALL orders with customer info
                 rows = await db.getAllAsync<Order>(`
                     SELECT o.*, u.fullName as customerName, u.email as customerEmail
                     FROM Orders o
@@ -38,7 +40,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     ORDER BY o.createdAt DESC
                 `);
             } else {
-                // Customer sees only their own orders
                 rows = await db.getAllAsync<Order>(
                     'SELECT * FROM Orders WHERE userId = ? ORDER BY createdAt DESC',
                     [user.id]
@@ -80,13 +81,25 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 [total, now, user.id]
             );
             const orderId = result.lastInsertRowId;
+
             for (const item of items) {
+                // 1. Create Order Item
                 await db.runAsync(
                     'INSERT INTO OrderItems (orderId, productId, quantity, price) VALUES (?, ?, ?, ?)',
                     [orderId, item.productId, item.quantity, item.product.price]
                 );
+
+                // 2. Auto-activation: Create License
+                const licenseKey = `AI-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+                const expiresAt = new Date();
+                expiresAt.setMonth(expiresAt.getMonth() + 1); // 1 month validity
+
+                await db.runAsync(
+                    'INSERT INTO Licenses (userId, productId, orderId, licenseKey, activatedAt, expiresAt) VALUES (?, ?, ?, ?, ?, ?)',
+                    [user.id, item.productId, orderId, licenseKey, now, expiresAt.toISOString()]
+                );
             }
-            // Clear this user's cart
+
             await db.runAsync('DELETE FROM Cart WHERE userId = ?', [user.id]);
             await fetchOrders();
             return true;
@@ -123,6 +136,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const getTopProducts = async () => {
+        try {
+            return await db.getAllAsync<{ name: string; quantity: number }>(`
+                SELECT p.name, SUM(oi.quantity) as quantity
+                FROM OrderItems oi
+                JOIN Products p ON oi.productId = p.id
+                GROUP BY p.id
+                ORDER BY quantity DESC
+                LIMIT 5
+            `);
+        } catch (e) {
+            return [];
+        }
+    };
+
     const getActiveUsersCount = async () => {
         try {
             const result = await db.getFirstAsync<{ count: number }>("SELECT COUNT(DISTINCT userId) as count FROM Orders");
@@ -132,12 +160,43 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const fetchOrderItems = async (orderId: number) => {
+        try {
+            return await db.getAllAsync<OrderItem>(`
+                SELECT oi.*, p.name as productName
+                FROM OrderItems oi
+                JOIN Products p ON oi.productId = p.id
+                WHERE oi.orderId = ?
+            `, [orderId]);
+        } catch (e) {
+            console.error('fetchOrderItems error:', e);
+            return [];
+        }
+    };
+
+    const fetchLicenses = async () => {
+        if (!user) return [];
+        try {
+            return await db.getAllAsync<any>(`
+                SELECT l.*, p.name as productName, p.image as productImage
+                FROM Licenses l
+                JOIN Products p ON l.productId = p.id
+                WHERE l.userId = ?
+                ORDER BY l.activatedAt DESC
+            `, [user.id]);
+        } catch (e) {
+            console.error('fetchLicenses error:', e);
+            return [];
+        }
+    };
+
     React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
     return (
         <OrderContext.Provider value={{
             orders, isLoading, stats, fetchOrders, fetchStats, checkout,
-            getRevenueByPeriod, getTopSpenders, getActiveUsersCount
+            getRevenueByPeriod, getTopSpenders, getTopProducts, getActiveUsersCount,
+            fetchOrderItems, fetchLicenses
         }}>
             {children}
         </OrderContext.Provider>

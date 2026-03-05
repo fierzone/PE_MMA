@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, Image, ScrollView,
-    TouchableOpacity, SafeAreaView, Platform, StatusBar
+    TouchableOpacity, SafeAreaView, Platform, StatusBar, ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { useCart } from '../../context/CartContext';
+import { useOrder } from '../../context/OrderContext';
+import { useAuth } from '../../context/AuthContext';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,13 +25,60 @@ const ENVIRONMENTS = [
 export const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const { product } = route.params;
     const { addToCart } = useCart();
+    const { checkout } = useOrder();
+    const { user } = useAuth();
     const [added, setAdded] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    const validateEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
 
     const handleAdd = async () => {
         await addToCart(product.id, 1);
         setAdded(true);
         Toast.show({ type: 'success', text1: '✓ Đã thêm vào giỏ', text2: product.name });
         setTimeout(() => setAdded(false), 2000);
+    };
+
+    const handleBuyNow = async () => {
+        if (!user) {
+            navigation.navigate('Auth' as any);
+            return;
+        }
+
+        if (!validateEmail(user.email)) {
+            Toast.show({ type: 'error', text1: 'Lỗi xác thực', text2: 'Email của bạn không hợp lệ.' });
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // Create a detailed item for checkout
+            const items = [{
+                id: Date.now(),
+                productId: product.id,
+                quantity: 1,
+                product: product
+            }];
+
+            const success = await checkout(items as any, product.price);
+            if (success) {
+                Toast.show({
+                    type: 'success',
+                    text1: 'Thanh toán thành công',
+                    text2: 'Bản quyền AI đã được kích hoạt và gửi tới email của bạn.'
+                });
+                navigation.navigate('CustomerTabs', { screen: 'Cart' } as any);
+            } else {
+                Toast.show({ type: 'error', text1: 'Lỗi', text2: 'Không thể thực hiện giao dịch.' });
+            }
+        } catch (e) {
+            console.error('Buy Now error:', e);
+            Toast.show({ type: 'error', text1: 'Lỗi hệ thống', text2: 'Vui lòng thử lại sau.' });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const tierLabel = product.tier === 'Premium' ? 'DOANH NGHIỆP'
@@ -44,13 +93,13 @@ export const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Ionicons name="arrow-back" size={20} color="#FFF" />
                 </TouchableOpacity>
-                <View style={styles.breadcrumb}>
+                <div style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={styles.breadcrumbItem}>CỬA HÀNG</Text>
                     <Text style={styles.breadcrumbSep}> › </Text>
                     <Text style={[styles.breadcrumbItem, { color: ShopifyTheme.colors.accent }]}>
                         {product.name.toUpperCase()}
                     </Text>
-                </View>
+                </div>
             </View>
 
             <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -58,7 +107,6 @@ export const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
                     {/* LEFT: Buy box */}
                     <View style={styles.leftPanel}>
-                        {/* Thumbnail */}
                         <View style={styles.thumbBox}>
                             <Image source={{ uri: product.image }} style={styles.thumbImage} resizeMode="contain" />
                         </View>
@@ -78,10 +126,24 @@ export const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                             style={[styles.addBtn, added && styles.addBtnAdded]}
                             onPress={handleAdd}
                             activeOpacity={0.9}
+                            disabled={loading}
                         >
                             <Text style={styles.addBtnText}>
-                                {added ? '✓ ĐÃ THÊM VÀO GIỎ' : 'MUA GIẤY PHÉP →'}
+                                {added ? '✓ ĐÃ THÊM VÀO GIỎ' : 'THÊM VÀO GIỎ HÀNG'}
                             </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.buyBtn}
+                            onPress={handleBuyNow}
+                            disabled={loading}
+                            activeOpacity={0.9}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#000" />
+                            ) : (
+                                <Text style={styles.buyBtnText}>MUA NGAY →</Text>
+                            )}
                         </TouchableOpacity>
 
                         <Text style={styles.deliveryNote}>Giao mã API ngay lập tức sau xác nhận</Text>
@@ -135,7 +197,6 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     backBtn: { padding: 4 },
-    breadcrumb: { flexDirection: 'row', alignItems: 'center' },
     breadcrumbItem: { fontSize: 11, fontWeight: '800', color: ShopifyTheme.colors.textMuted, letterSpacing: 1 },
     breadcrumbSep: { fontSize: 12, color: 'rgba(255,255,255,0.2)' },
     scroll: { flex: 1 },
@@ -171,12 +232,18 @@ const styles = StyleSheet.create({
     price: { color: '#FFF', fontSize: 40, fontWeight: '900', letterSpacing: -1 },
     priceUnit: { color: ShopifyTheme.colors.textMuted, fontSize: 16 },
     addBtn: {
-        backgroundColor: '#FFF', borderRadius: 100,
-        paddingVertical: 20, alignItems: 'center', marginBottom: 16,
+        backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 100,
+        paddingVertical: 18, alignItems: 'center', marginBottom: 12,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     },
-    addBtnAdded: { backgroundColor: ShopifyTheme.colors.accent },
-    addBtnText: { color: '#000', fontWeight: '900', fontSize: 13, letterSpacing: 1 },
-    deliveryNote: { color: ShopifyTheme.colors.textMuted, fontSize: 12, textAlign: 'center' },
+    addBtnAdded: { backgroundColor: ShopifyTheme.colors.accent, borderColor: ShopifyTheme.colors.accent },
+    addBtnText: { color: '#FFF', fontWeight: '900', fontSize: 13, letterSpacing: 1 },
+    buyBtn: {
+        backgroundColor: '#FFF', borderRadius: 100,
+        paddingVertical: 18, alignItems: 'center', marginBottom: 16,
+    },
+    buyBtnText: { color: '#000', fontWeight: '900', fontSize: 13, letterSpacing: 1 },
+    deliveryNote: { color: ShopifyTheme.colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 8 },
 
     rightPanel: { flex: 1, padding: 40, gap: 48 },
     description: {
@@ -191,7 +258,7 @@ const styles = StyleSheet.create({
     envGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     envCard: {
         flexDirection: 'row', alignItems: 'center', gap: 12,
-        width: '47%',
+        width: Platform.OS === 'web' ? '47%' : '100%',
         borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 16, padding: 16,
         backgroundColor: 'rgba(255,255,255,0.02)',

@@ -11,29 +11,40 @@ const { width } = Dimensions.get('window');
 
 export const RevenueScreen: React.FC = () => {
     const {
-        stats, fetchStats, isLoading, getTopSpenders, getActiveUsersCount
+        stats, fetchStats, isLoading, getTopSpenders, getActiveUsersCount, getTopProducts, getRevenueByPeriod
     } = useOrder();
 
     const [period, setPeriod] = useState<'24h' | '7d' | '30d' | 'all'>('all');
     const [topSpenders, setTopSpenders] = useState<any[]>([]);
+    const [topProducts, setTopProducts] = useState<any[]>([]);
+    const [revenueHistory, setRevenueHistory] = useState<any[]>([]);
     const [activeUsers, setActiveUsers] = useState(0);
 
     useEffect(() => {
-        fetchStats(period);
-        loadExtraData();
+        const loadAll = async () => {
+            await fetchStats(period);
+            await loadExtraData();
+        };
+        loadAll();
     }, [fetchStats, period]);
 
     const loadExtraData = async () => {
-        const spenders = await getTopSpenders();
-        const count = await getActiveUsersCount();
+        const [spenders, products, revenue, count] = await Promise.all([
+            getTopSpenders(),
+            getTopProducts(),
+            getRevenueByPeriod('day'),
+            getActiveUsersCount()
+        ]);
         setTopSpenders(spenders);
+        setTopProducts(products);
+        setRevenueHistory(revenue.slice(0, 7).reverse()); // Last 7 periods
         setActiveUsers(count);
     };
 
     const handlePeriodChange = () => {
         Alert.alert(
-            "CHUYỂN ĐỔI CHỈ SỐ",
-            "Toàn bộ hệ thống sẽ được tái cấu trúc dữ liệu theo khoảng thời gian được chọn.",
+            "CHỌN KHOẢNG THỜI GIAN",
+            "Dữ liệu thống kê sẽ được cập nhật theo lựa chọn của bạn.",
             [
                 { text: "24 GIỜ QUA", onPress: () => setPeriod('24h') },
                 { text: "7 NGÀY QUA", onPress: () => setPeriod('7d') },
@@ -47,29 +58,49 @@ export const RevenueScreen: React.FC = () => {
     const totalRevenue = stats?.totalRevenue ?? 0;
     const orderCount = stats?.orderCount ?? 0;
 
+    // Simple Custom Bar Chart Component
+    const MiniBarChart = ({ data, color }: { data: any[], color: string }) => {
+        const max = Math.max(...data.map(d => d.amount || d.quantity || 1));
+        return (
+            <View style={styles.chartContainer}>
+                {data.map((item, i) => (
+                    <View key={i} style={styles.chartColumn}>
+                        <View style={[
+                            styles.chartBar,
+                            {
+                                height: `${((item.amount || item.quantity) / max) * 100}%`,
+                                backgroundColor: color
+                            }
+                        ]} />
+                        <Text style={styles.chartLabel} numberOfLines={1}>
+                            {item.period ? item.period.split('-').pop() : item.name.split(' ')[0]}
+                        </Text>
+                    </View>
+                ))}
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
             <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                 <View style={styles.content}>
 
-                    {/* Chapter Marker */}
                     <Text style={styles.chapterMarker}>CHAPTER VIII · ANALYTICS</Text>
 
-                    {/* Editorial Header */}
                     <View style={styles.heroHeader}>
                         <Text style={styles.heroTitle}>Trung Tâm</Text>
                         <Text style={styles.heroTitleAccent}>Điều Hành.</Text>
                         <Text style={styles.heroDesc}>
-                            Phân tích dữ liệu thời gian thực cho thấy sự tăng trưởng của kỷ nguyên thương mại mới.
+                            Phân tích dữ liệu thời gian thực cho thấy sự tăng trưởng của kỷ nguyên AI.
                         </Text>
                     </View>
 
-                    {/* Period Switcher Pill */}
                     <View style={styles.filterRow}>
                         <TouchableOpacity style={styles.pillBtn} onPress={handlePeriodChange}>
                             <Text style={styles.pillBtnText}>{period.toUpperCase()} PERFORMANCE</Text>
-                            <Ionicons name="chevron-down" size={16} color="#000" />
+                            <Ionicons name="filter-outline" size={16} color="#000" />
                         </TouchableOpacity>
                         <View style={styles.romanGroup}>
                             <Text style={styles.roman}>I</Text>
@@ -78,43 +109,50 @@ export const RevenueScreen: React.FC = () => {
                         </View>
                     </View>
 
-                    {/* Main Stats Cards */}
                     <View style={styles.statsGrid}>
-                        {/* Revenue Card */}
-                        <LinearGradient
-                            colors={['#111827', '#0F172A']}
-                            style={styles.statsCard}
-                        >
-                            <View style={styles.cardHeader}>
-                                <Text style={styles.cardTag}>GROSS REVENUE</Text>
-                            </View>
+                        <LinearGradient colors={['#111827', '#0F172A']} style={styles.statsCard}>
+                            <Text style={styles.cardTag}>TỔNG DOANH THU</Text>
                             <Text style={styles.megaValue}>${totalRevenue.toLocaleString()}</Text>
                             <View style={styles.trendingRow}>
                                 <Ionicons name="trending-up" size={16} color={ShopifyTheme.colors.accent} />
-                                <Text style={styles.trendingText}>+18.4% TĂNG TRƯỞNG</Text>
+                                <Text style={styles.trendingText}>TĂNG TRƯỞNG ỔN ĐỊNH</Text>
                             </View>
                         </LinearGradient>
 
-                        {/* Active Customers */}
-                        <LinearGradient
-                            colors={['#111827', '#000000']}
-                            style={styles.statsCard}
-                        >
-                            <View style={styles.cardHeader}>
-                                <Text style={styles.cardTag}>ACTIVE CUSTOMERS</Text>
-                            </View>
-                            <Text style={styles.megaValue}>{activeUsers}</Text>
-                            <Text style={styles.cardDescMini}>Người dùng thực tế đã phát sinh giao dịch trên hệ thống.</Text>
+                        <LinearGradient colors={['#111827', '#000000']} style={styles.statsCard}>
+                            <Text style={styles.cardTag}>SỐ LƯỢNG ĐƠN HÀNG</Text>
+                            <Text style={styles.megaValue}>{orderCount}</Text>
+                            <Text style={styles.cardDescMini}>Tổng số giao dịch thành công trong hệ thống.</Text>
                         </LinearGradient>
                     </View>
 
-                    {/* Top Spenders Table - Realistic Backend Data */}
+                    {/* Charts Section */}
+                    <View style={styles.statsGrid}>
+                        <View style={[styles.statsCard, { backgroundColor: 'rgba(255,255,255,0.03)' }]}>
+                            <Text style={styles.cardTag}>XU HƯỚNG DOANH THU (7 NGÀY)</Text>
+                            {revenueHistory.length > 0 ? (
+                                <MiniBarChart data={revenueHistory} color={ShopifyTheme.colors.accent} />
+                            ) : (
+                                <Text style={styles.emptyChart}>Đang cập nhật dữ liệu...</Text>
+                            )}
+                        </View>
+
+                        <View style={[styles.statsCard, { backgroundColor: 'rgba(255,255,255,0.03)' }]}>
+                            <Text style={styles.cardTag}>GÓI AI BÁN CHẠY NHẤT</Text>
+                            {topProducts.length > 0 ? (
+                                <MiniBarChart data={topProducts} color="#A78BFA" />
+                            ) : (
+                                <Text style={styles.emptyChart}>Chưa có dữ liệu bán hàng</Text>
+                            )}
+                        </View>
+                    </View>
+
                     <View style={styles.sectionBlock}>
-                        <Text style={styles.sectionHeading}>Khách Hàng Hạng Sang</Text>
+                        <Text style={styles.sectionHeading}>Khách Hàng Hoạt Động</Text>
                         <View style={styles.tableContainer}>
                             <View style={styles.tableHead}>
                                 <Text style={styles.th}>DANH TÍNH</Text>
-                                <Text style={styles.th}>GIAO DỊCH</Text>
+                                <Text style={styles.th}>ĐƠN HÀNG</Text>
                                 <Text style={[styles.th, { textAlign: 'right' }]}>TỔNG CHI</Text>
                             </View>
                             {topSpenders.map((s, idx) => (
@@ -135,9 +173,8 @@ export const RevenueScreen: React.FC = () => {
                         </View>
                     </View>
 
-                    {/* Footer */}
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>RENAISSANCE ANALYTICS ENGINE · WINTER 2026</Text>
+                        <Text style={styles.footerText}>AI SHOP ANALYTICS ENGINE · 2026</Text>
                     </View>
 
                 </View>
@@ -362,5 +399,35 @@ const styles = StyleSheet.create({
         fontSize: 9,
         fontWeight: '800',
         letterSpacing: 2,
-    }
+    },
+    chartContainer: {
+        flexDirection: 'row',
+        height: 120,
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        marginTop: 24,
+        paddingHorizontal: 10,
+    },
+    chartColumn: {
+        alignItems: 'center',
+        flex: 1,
+        gap: 8,
+    },
+    chartBar: {
+        width: 12,
+        borderRadius: 6,
+        minHeight: 4,
+    },
+    chartLabel: {
+        color: 'rgba(255,255,255,0.3)',
+        fontSize: 9,
+        fontWeight: '700',
+    },
+    emptyChart: {
+        color: 'rgba(255,255,255,0.2)',
+        fontSize: 12,
+        fontStyle: 'italic',
+        marginTop: 40,
+        textAlign: 'center',
+    },
 });

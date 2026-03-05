@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, SafeAreaView,
-    TouchableOpacity, Alert, StatusBar
+    TouchableOpacity, Alert, StatusBar, Platform, Modal, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -17,19 +17,38 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CustomerTabs'>;
 export const CustomerAccountScreen: React.FC<Props> = ({ navigation }) => {
     const { user, logout } = useAuth();
     const { cartItems, totalPrice } = useCart();
-    const { orders, fetchOrders } = useOrder();
+    const { orders, fetchOrders, fetchLicenses } = useOrder();
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [licenses, setLicenses] = useState<any[]>([]);
+    const [loadingLicenses, setLoadingLicenses] = useState(false);
 
-    useEffect(() => { fetchOrders(); }, [fetchOrders]);
+    useEffect(() => {
+        fetchOrders();
+        loadLicenses();
+    }, [fetchOrders]);
+
+    const loadLicenses = async () => {
+        setLoadingLicenses(true);
+        const data = await fetchLicenses();
+        setLicenses(data);
+        setLoadingLicenses(false);
+    };
 
     const totalSpend = orders.reduce((s, o) => s + o.totalAmount, 0);
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Buổi Sáng' : hour < 18 ? 'Buổi Chiều' : 'Buổi Tối';
 
     const handleLogout = () => {
-        Alert.alert('Đăng xuất', 'Bạn có chắc chắn?', [
-            { text: 'Hủy', style: 'cancel' },
-            { text: 'ĐĂNG XUẤT', style: 'destructive', onPress: logout },
-        ]);
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = async () => {
+        setShowLogoutModal(false);
+        try {
+            await logout();
+        } catch (e) {
+            console.error('Logout failed:', e);
+        }
     };
 
     return (
@@ -59,7 +78,7 @@ export const CustomerAccountScreen: React.FC<Props> = ({ navigation }) => {
                         <View style={styles.statDivider} />
                         <View style={styles.statItem}>
                             <Text style={styles.statNum}>${totalSpend.toFixed(0)}</Text>
-                            <Text style={styles.statLabel}>ĐÃ CHI</Text>
+                            <Text style={styles.statLabel}>ĐÃ CHI</Text>
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statItem}>
@@ -68,6 +87,39 @@ export const CustomerAccountScreen: React.FC<Props> = ({ navigation }) => {
                         </View>
                     </View>
                 </LinearGradient>
+
+                {/* AI Licenses Section (Auto-activated Packages) */}
+                <View style={[styles.section, { backgroundColor: 'rgba(94,234,212,0.02)', borderColor: 'rgba(94,234,212,0.1)' }]}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: ShopifyTheme.colors.accent }]}>LIÊN MINH AI CỦA BẠN</Text>
+                        <Ionicons name="flash" size={14} color={ShopifyTheme.colors.accent} />
+                    </View>
+
+                    {licenses.length === 0 ? (
+                        <View style={styles.emptyOrders}>
+                            <Text style={styles.emptyOrdersText}>CHƯA CÓ BẢN QUYỀN KÍCH HOẠT</Text>
+                        </View>
+                    ) : (
+                        licenses.map((lic) => (
+                            <View key={lic.id} style={styles.licenseCard}>
+                                <Image source={{ uri: lic.productImage }} style={styles.licImage} resizeMode="contain" />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.licName}>{lic.productName}</Text>
+                                    <View style={styles.keyRow}>
+                                        <Text style={styles.licKey}>{lic.licenseKey}</Text>
+                                        <TouchableOpacity onPress={() => Alert.alert('Đã chép mã', lic.licenseKey)}>
+                                            <Ionicons name="copy-outline" size={14} color="rgba(255,255,255,0.3)" />
+                                        </TouchableOpacity>
+                                    </View>
+                                    <Text style={styles.licDate}>Kích hoạt: {new Date(lic.activatedAt).toLocaleDateString('vi-VN')}</Text>
+                                </View>
+                                <View style={styles.statusBadge}>
+                                    <Text style={styles.statusText}>ACTIVE</Text>
+                                </View>
+                            </View>
+                        ))
+                    )}
+                </View>
 
                 {/* Recent Orders */}
                 <View style={styles.section}>
@@ -145,6 +197,29 @@ export const CustomerAccountScreen: React.FC<Props> = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            {/* Logout Confirmation Modal */}
+            <Modal visible={showLogoutModal} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalIconBox}>
+                            <Ionicons name="log-out-outline" size={32} color="#FF453A" />
+                        </View>
+                        <Text style={styles.modalTitle}>Xác nhận thoát?</Text>
+                        <Text style={styles.modalDesc}>
+                            Phiên làm việc của bạn sẽ kết thúc. Cảm ơn bạn đã đồng hành cùng chúng tôi.
+                        </Text>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowLogoutModal(false)}>
+                                <Text style={styles.cancelBtnText}>HỦY BỎ</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.confirmBtn} onPress={confirmLogout}>
+                                <Text style={styles.confirmBtnText}>ĐĂNG XUẤT</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -211,6 +286,23 @@ const styles = StyleSheet.create({
     orderDate: { color: ShopifyTheme.colors.textMuted, fontSize: 12, marginTop: 2 },
     orderPrice: { color: ShopifyTheme.colors.accent, fontSize: 15, fontWeight: '900' },
 
+    licenseCard: {
+        flexDirection: 'row', alignItems: 'center', gap: 16,
+        padding: 16, backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 20, marginBottom: 12,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    },
+    licImage: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#000' },
+    licName: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+    keyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+    licKey: { color: ShopifyTheme.colors.accent, fontSize: 11, fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+    licDate: { color: 'rgba(255,255,255,0.3)', fontSize: 10, marginTop: 6 },
+    statusBadge: {
+        backgroundColor: 'rgba(94,234,212,0.1)',
+        paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100,
+    },
+    statusText: { color: ShopifyTheme.colors.accent, fontSize: 8, fontWeight: '900' },
+
     menuRow: {
         flexDirection: 'row', alignItems: 'center', gap: 16,
         paddingVertical: 20,
@@ -231,4 +323,64 @@ const styles = StyleSheet.create({
         borderRadius: 100, paddingVertical: 20,
     },
     logoutText: { fontSize: 13, fontWeight: '900', color: '#FF453A', letterSpacing: 1 },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: '#111827',
+        borderRadius: 32,
+        padding: 32,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    modalIconBox: {
+        width: 64, height: 64, borderRadius: 32,
+        backgroundColor: 'rgba(255, 69, 58, 0.1)',
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 24,
+    },
+    modalTitle: {
+        color: '#FFF',
+        fontSize: 20,
+        fontWeight: '900',
+        marginBottom: 12,
+    },
+    modalDesc: {
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 14,
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 32,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    cancelBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    cancelBtnText: { color: 'rgba(255,255,255,0.5)', fontWeight: '800', fontSize: 12, letterSpacing: 1 },
+    confirmBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        backgroundColor: '#FF453A',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    confirmBtnText: { color: '#FFF', fontWeight: '900', fontSize: 12, letterSpacing: 1 },
 });

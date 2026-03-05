@@ -66,6 +66,23 @@ export async function initDatabase(db: SQLiteDatabase) {
             );
         `);
 
+        // 6. Licenses (Auto-activation)
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS Licenses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId INTEGER NOT NULL,
+                productId INTEGER NOT NULL,
+                orderId INTEGER NOT NULL,
+                licenseKey TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                activatedAt TEXT NOT NULL,
+                expiresAt TEXT,
+                FOREIGN KEY (userId) REFERENCES Users(id),
+                FOREIGN KEY (productId) REFERENCES Products(id),
+                FOREIGN KEY (orderId) REFERENCES Orders(id)
+            );
+        `);
+
         // Seed Products if empty
         const productCount = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM Products');
         if (productCount && productCount.count === 0) {

@@ -1,15 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, SafeAreaView,
-    TouchableOpacity, Platform, ActivityIndicator
+    TouchableOpacity, Platform, ActivityIndicator, StatusBar, Modal, ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrder } from '../../context/OrderContext';
 import { useNavigation } from '@react-navigation/native';
+import { ShopifyTheme } from '../../theme/ShopifyTheme';
+import { Order, OrderItem } from '../../types';
 
 export const OrderHistoryScreen: React.FC = () => {
-    const { orders, fetchOrders, isLoading } = useOrder();
+    const { orders, fetchOrders, isLoading, fetchOrderItems } = useOrder();
     const navigation = useNavigation();
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [loadingItems, setLoadingItems] = useState(false);
 
     useEffect(() => {
         fetchOrders();
@@ -17,74 +23,68 @@ export const OrderHistoryScreen: React.FC = () => {
 
     const totalSpend = orders.reduce((s, o) => s + o.totalAmount, 0);
 
-    const renderOrder = ({ item, index }: { item: any; index: number }) => (
-        <View style={styles.orderCard}>
+    const handleViewDetail = async (order: Order) => {
+        setSelectedOrder(order);
+        setShowDetailModal(true);
+        setLoadingItems(true);
+        const items = await fetchOrderItems(order.id);
+        setOrderItems(items);
+        setLoadingItems(false);
+    };
+
+    const renderOrder = ({ item }: { item: Order }) => (
+        <TouchableOpacity style={styles.orderCard} onPress={() => handleViewDetail(item)}>
             <View style={styles.orderHeader}>
                 <View style={styles.orderIconWrap}>
-                    <Ionicons name="receipt-outline" size={20} color="#16869C" />
+                    <Ionicons name="receipt-outline" size={20} color={ShopifyTheme.colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.orderId}>Đơn hàng #{item.id}</Text>
+                    <Text style={styles.orderId}>MI-26-{item.id.toString().padStart(4, '0')}</Text>
                     <Text style={styles.orderDate}>
-                        {new Date(item.createdAt).toLocaleDateString('vi-VN', {
-                            day: '2-digit', month: '2-digit', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit'
-                        })}
+                        {new Date(item.createdAt).toLocaleDateString('vi-VN')}
                     </Text>
                 </View>
                 <View style={styles.paidBadge}>
-                    <Text style={styles.paidText}>ĐÃ TT</Text>
+                    <Text style={styles.paidText}>SUCCESS</Text>
                 </View>
             </View>
-            <View style={styles.orderDivider} />
             <View style={styles.orderFooter}>
-                <Text style={styles.orderAmountLabel}>Tổng thanh toán</Text>
                 <Text style={styles.orderAmount}>${item.totalAmount.toFixed(2)}</Text>
+                <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.2)" />
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
+            <StatusBar barStyle="light-content" />
+
+            <View style={styles.nav}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={22} color="#0F172A" />
+                    <Ionicons name="arrow-back" size={20} color="#FFF" />
                 </TouchableOpacity>
-                <View>
-                    <Text style={styles.headerTitle}>Lịch sử mua hàng</Text>
-                    <Text style={styles.headerSub}>{orders.length} đơn hàng</Text>
-                </View>
+                <Text style={styles.navTitle}>LỊCH SỬ GIAO DỊCH</Text>
             </View>
 
-            {/* Summary bar */}
-            <View style={styles.summaryBar}>
-                <View style={styles.summaryItem}>
-                    <Text style={styles.summaryNum}>{orders.length}</Text>
-                    <Text style={styles.summaryLabel}>Đơn hàng</Text>
+            <View style={styles.summaryContainer}>
+                <View style={styles.summaryBox}>
+                    <Text style={styles.summaryLabel}>TỔNG ĐƠN</Text>
+                    <Text style={styles.summaryVal}>{orders.length}</Text>
                 </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryItem}>
-                    <Text style={styles.summaryNum}>${totalSpend.toFixed(2)}</Text>
-                    <Text style={styles.summaryLabel}>Tổng chi tiêu</Text>
-                </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryItem}>
-                    <Text style={styles.summaryNum}>
-                        ${orders.length > 0 ? (totalSpend / orders.length).toFixed(2) : '0.00'}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Trung bình</Text>
+                <View style={styles.summaryBox}>
+                    <Text style={styles.summaryLabel}>TỔNG CHI</Text>
+                    <Text style={styles.summaryVal}>${totalSpend.toFixed(0)}</Text>
                 </View>
             </View>
 
             {isLoading ? (
-                <ActivityIndicator size="large" color="#16869C" style={{ marginTop: 60 }} />
+                <View style={styles.center}>
+                    <ActivityIndicator color={ShopifyTheme.colors.accent} />
+                </View>
             ) : orders.length === 0 ? (
                 <View style={styles.empty}>
-                    <Ionicons name="bag-remove-outline" size={72} color="#E2E8F0" />
-                    <Text style={styles.emptyTitle}>Chưa có đơn hàng nào</Text>
-                    <Text style={styles.emptyText}>
-                        Hãy khám phá cửa hàng và đặt mua sản phẩm đầu tiên của bạn!
-                    </Text>
+                    <Ionicons name="documents-outline" size={60} color="rgba(255,255,255,0.05)" />
+                    <Text style={styles.emptyText}>KHÔNG CÓ DỮ LIỆU</Text>
                 </View>
             ) : (
                 <FlatList
@@ -95,75 +95,200 @@ export const OrderHistoryScreen: React.FC = () => {
                     showsVerticalScrollIndicator={false}
                 />
             )}
+
+            {/* Order Detail Modal */}
+            <Modal visible={showDetailModal} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>Chi tiết đơn hàng #{selectedOrder?.id}</Text>
+                                <Text style={styles.modalSub}>{new Date(selectedOrder?.createdAt || '').toLocaleString('vi-VN')}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowDetailModal(false)}>
+                                <Ionicons name="close" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalBody}>
+                            <Text style={styles.sectionLabel}>SẢN PHẨM ĐÃ MUA</Text>
+                            {loadingItems ? (
+                                <ActivityIndicator color={ShopifyTheme.colors.accent} style={{ marginVertical: 20 }} />
+                            ) : (
+                                orderItems.map((item, idx) => (
+                                    <View key={idx} style={styles.itemRow}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.itemName}>{item.productName}</Text>
+                                            <Text style={styles.itemMeta}>Số lượng: {item.quantity} × ${item.price}</Text>
+                                        </View>
+                                        <Text style={styles.itemTotal}>${(item.quantity * item.price).toFixed(2)}</Text>
+                                    </View>
+                                ))
+                            )}
+
+                            <View style={styles.totalBlock}>
+                                <Text style={styles.totalLabel}>TỔNG CỘNG</Text>
+                                <Text style={styles.totalValue}>${selectedOrder?.totalAmount.toFixed(2)}</Text>
+                            </View>
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            style={styles.closeBtn}
+                            onPress={() => setShowDetailModal(false)}
+                        >
+                            <Text style={styles.closeBtnText}>QUAY LẠI</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+    container: { flex: 1, backgroundColor: '#000' },
+    nav: {
+        flexDirection: 'row', alignItems: 'center', gap: 16,
+        paddingHorizontal: 24, paddingVertical: 20,
+        borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
     },
     backBtn: { padding: 4 },
-    headerTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-    headerSub: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
-    summaryBar: {
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        marginHorizontal: 16,
-        marginTop: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        padding: 20,
+    navTitle: { color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+    summaryContainer: {
+        flexDirection: 'row', padding: 24, gap: 12,
     },
-    summaryItem: { flex: 1, alignItems: 'center' },
-    summaryNum: {
-        fontSize: 18, fontWeight: '800', color: '#0F172A',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    summaryBox: {
+        flex: 1, backgroundColor: 'rgba(255,255,255,0.03)',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 20, padding: 20,
     },
-    summaryLabel: { fontSize: 11, color: '#94A3B8', marginTop: 4, textAlign: 'center' },
-    summaryDivider: { width: 1, backgroundColor: '#F1F5F9' },
-    list: { padding: 16, gap: 12 },
+    summaryLabel: { color: ShopifyTheme.colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+    summaryVal: { color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: -1 },
+    list: { paddingHorizontal: 24, paddingBottom: 40, gap: 12 },
     orderCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 4,
-        elevation: 1,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        borderRadius: 20, padding: 20,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
     },
-    orderHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    orderHeader: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
     orderIconWrap: {
-        width: 40, height: 40, borderRadius: 10,
-        backgroundColor: '#EFF9FB', alignItems: 'center', justifyContent: 'center',
+        width: 44, height: 44, borderRadius: 14,
+        backgroundColor: 'rgba(94,234,212,0.1)',
+        alignItems: 'center', justifyContent: 'center',
     },
-    orderId: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-    orderDate: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
+    orderId: { color: '#FFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
+    orderDate: { color: ShopifyTheme.colors.textMuted, fontSize: 11, marginTop: 2 },
     paidBadge: {
-        backgroundColor: '#DCFCE7', borderRadius: 6,
-        paddingHorizontal: 8, paddingVertical: 4,
+        backgroundColor: 'rgba(94,234,212,0.08)', borderRadius: 100,
+        paddingHorizontal: 10, paddingVertical: 4,
     },
-    paidText: { fontSize: 10, fontWeight: '800', color: '#16A34A', letterSpacing: 0.5 },
-    orderDivider: { height: 1, backgroundColor: '#F8FAFC', marginVertical: 12 },
-    orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    orderAmountLabel: { fontSize: 13, color: '#64748B' },
-    orderAmount: {
-        fontSize: 18, fontWeight: '800', color: '#0F172A',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    paidText: { fontSize: 8, fontWeight: '900', color: ShopifyTheme.colors.accent, letterSpacing: 1 },
+    orderFooter: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.03)', paddingTop: 16,
     },
-    empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40, gap: 12 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-    emptyText: { fontSize: 14, color: '#94A3B8', textAlign: 'center', lineHeight: 22 },
+    orderAmount: { color: '#FFF', fontSize: 18, fontWeight: '900', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
+    emptyText: { color: 'rgba(255,255,255,0.2)', fontSize: 10, fontWeight: '900', letterSpacing: 3 },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#111827',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        maxHeight: '85%',
+        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        padding: 32,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    modalTitle: {
+        color: '#FFF',
+        fontSize: 18,
+        fontWeight: '900',
+        marginBottom: 4,
+    },
+    modalSub: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    modalBody: {
+        padding: 32,
+    },
+    sectionLabel: {
+        color: ShopifyTheme.colors.accent,
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1.5,
+        marginBottom: 24,
+    },
+    itemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.03)',
+    },
+    itemName: {
+        color: '#FFF',
+        fontSize: 15,
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    itemMeta: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 12,
+    },
+    itemTotal: {
+        color: '#FFF',
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    totalBlock: {
+        marginTop: 32,
+        padding: 24,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 20,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 32,
+    },
+    totalLabel: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 11,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    totalValue: {
+        color: ShopifyTheme.colors.accent,
+        fontSize: 24,
+        fontWeight: '900',
+    },
+    closeBtn: {
+        marginHorizontal: 32,
+        height: 56,
+        backgroundColor: '#FFF',
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    closeBtnText: {
+        color: '#000',
+        fontSize: 13,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
 });

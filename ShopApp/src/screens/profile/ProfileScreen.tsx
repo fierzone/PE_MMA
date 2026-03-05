@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, SafeAreaView, TouchableOpacity,
-    ScrollView, Alert, StatusBar
+    ScrollView, Alert, StatusBar, Platform, Modal
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -14,6 +14,7 @@ export const ProfileScreen: React.FC = () => {
     const navigation = useNavigation();
     const db = useSQLiteContext();
     const [stats, setStats] = useState({ orders: 0, spent: 0 });
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     useEffect(() => {
         if (user) loadUserStats();
@@ -33,10 +34,16 @@ export const ProfileScreen: React.FC = () => {
     };
 
     const handleLogout = () => {
-        Alert.alert('Đăng xuất', 'Bạn có chắc muốn thoát?', [
-            { text: 'Hủy', style: 'cancel' },
-            { text: 'Đăng xuất', onPress: logout, style: 'destructive' }
-        ]);
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = async () => {
+        setShowLogoutModal(false);
+        try {
+            await logout();
+        } catch (e) {
+            console.error('Logout failed:', e);
+        }
     };
 
     if (!user) return null;
@@ -47,10 +54,8 @@ export const ProfileScreen: React.FC = () => {
             <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                 <View style={styles.content}>
 
-                    {/* Chapter Marker */}
                     <Text style={styles.chapterMarker}>CHAPTER XII · PORTRAIT</Text>
 
-                    {/* Identity */}
                     <View style={styles.identitySection}>
                         <View style={styles.avatarContainer}>
                             <View style={styles.avatar}>
@@ -64,7 +69,6 @@ export const ProfileScreen: React.FC = () => {
                         <Text style={styles.email}>{user.email}</Text>
                     </View>
 
-                    {/* Stats */}
                     <View style={styles.statsRow}>
                         <View style={styles.statBox}>
                             <Text style={styles.statVal}>{stats.orders}</Text>
@@ -77,7 +81,6 @@ export const ProfileScreen: React.FC = () => {
                         </View>
                     </View>
 
-                    {/* Menu */}
                     <View style={styles.menuSection}>
                         <Text style={styles.menuTitle}>TIỆN ÍCH</Text>
 
@@ -126,7 +129,6 @@ export const ProfileScreen: React.FC = () => {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Footer */}
                     <View style={styles.footer}>
                         <View style={styles.romanGroup}>
                             {['IX', 'X', 'XI', 'XII'].map((r, i) => (
@@ -138,6 +140,29 @@ export const ProfileScreen: React.FC = () => {
 
                 </View>
             </ScrollView>
+
+            {/* Logout Confirmation Modal */}
+            <Modal visible={showLogoutModal} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalIconBox}>
+                            <Ionicons name="log-out-outline" size={32} color="#FF453A" />
+                        </View>
+                        <Text style={styles.modalTitle}>Xác nhận thoát?</Text>
+                        <Text style={styles.modalDesc}>
+                            Hệ thống sẽ đóng phiên làm việc của bạn. Bạn có chắc chắn muốn đăng xuất không?
+                        </Text>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowLogoutModal(false)}>
+                                <Text style={styles.cancelBtnText}>HỦY BỎ</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.confirmBtn} onPress={confirmLogout}>
+                                <Text style={styles.confirmBtnText}>ĐĂNG XUẤT</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -204,4 +229,64 @@ const styles = StyleSheet.create({
     roman: { color: 'rgba(255,255,255,0.1)', fontSize: 14, fontWeight: '900', letterSpacing: 4 },
     romanActive: { color: ShopifyTheme.colors.accent, fontSize: 14, fontWeight: '900', letterSpacing: 4 },
     footerBrand: { color: 'rgba(255,255,255,0.15)', fontSize: 10, fontWeight: '900', letterSpacing: 3 },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: '#111827',
+        borderRadius: 32,
+        padding: 32,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    modalIconBox: {
+        width: 64, height: 64, borderRadius: 32,
+        backgroundColor: 'rgba(255, 69, 58, 0.1)',
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 24,
+    },
+    modalTitle: {
+        color: '#FFF',
+        fontSize: 20,
+        fontWeight: '900',
+        marginBottom: 12,
+    },
+    modalDesc: {
+        color: ShopifyTheme.colors.textMuted,
+        fontSize: 14,
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 32,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    cancelBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    cancelBtnText: { color: 'rgba(255,255,255,0.5)', fontWeight: '800', fontSize: 12, letterSpacing: 1 },
+    confirmBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        backgroundColor: '#FF453A',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    confirmBtnText: { color: '#FFF', fontWeight: '900', fontSize: 12, letterSpacing: 1 },
 });
