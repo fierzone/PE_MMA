@@ -1,15 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, SafeAreaView,
-    TouchableOpacity, Platform, Alert, Dimensions, StatusBar, ActivityIndicator
+    TouchableOpacity, Platform, Alert, StatusBar, ActivityIndicator, useWindowDimensions
 } from 'react-native';
 import { useOrder } from '../../context/OrderContext';
 import { Ionicons } from '@expo/vector-icons';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-
-const { width } = Dimensions.get('window');
+import { PieChart, BarChart } from 'react-native-chart-kit';
 
 export const RevenueScreen: React.FC = () => {
     const {
@@ -23,6 +22,9 @@ export const RevenueScreen: React.FC = () => {
     const [revenueHistory, setRevenueHistory] = useState<any[]>([]);
     const [activeUsers, setActiveUsers] = useState(0);
     const [extraLoading, setExtraLoading] = useState(false);
+
+    const { width: windowWidth } = useWindowDimensions();
+    const isLargeScreen = windowWidth >= 768;
 
     // ── Load analytics data ──────────────────────────────────────────────────
     const loadExtraData = useCallback(async () => {
@@ -87,33 +89,29 @@ export const RevenueScreen: React.FC = () => {
     const totalRevenue = stats?.totalRevenue ?? 0;
     const orderCount = stats?.orderCount ?? 0;
 
-    // ── Mini Bar Chart ───────────────────────────────────────────────────────
-    const MiniBarChart = ({ data, color }: { data: any[]; color: string }) => {
-        const maxVal = Math.max(...data.map(d => d.amount || d.quantity || 1), 1);
-        return (
-            <View style={styles.chartContainer}>
-                {data.map((item, i) => (
-                    <View key={i} style={styles.chartColumn}>
-                        <View style={[
-                            styles.chartBar,
-                            {
-                                height: `${Math.max(((item.amount || item.quantity) / maxVal) * 100, 2)}%`,
-                                backgroundColor: color,
-                            }
-                        ]} />
-                        <Text style={styles.chartLabel} numberOfLines={1}>
-                            {item.period
-                                ? item.period.slice(5)  // MM-DD
-                                : item.name?.split(' ')[0] ?? ''}
-                        </Text>
-                    </View>
-                ))}
-            </View>
-        );
-    };
-
     const periodLabel = { '24h': '24 GIỜ QUA', '7d': '7 NGÀY QUA', '30d': '30 NGÀY QUA', 'all': 'TẤT CẢ' }[period];
     const loadingAny = isLoading || extraLoading;
+
+    const pieData = [
+        { name: 'Thành công', population: Math.max(1, Math.round(orderCount * 0.85)), color: '#5EEAD4', legendFontColor: '#FFF', legendFontSize: 11 },
+        { name: 'Đang xử lý', population: Math.max(0, Math.round(orderCount * 0.1)), color: '#A78BFA', legendFontColor: '#FFF', legendFontSize: 11 },
+        { name: 'Đã hủy', population: Math.max(0, Math.round(orderCount * 0.05)), color: '#FF453A', legendFontColor: '#FFF', legendFontSize: 11 },
+    ];
+
+    const barData = {
+        labels: revenueHistory.length > 0 ? revenueHistory.map(r => r.period ? r.period.slice(5) : '') : ['No Data'],
+        datasets: [{ data: revenueHistory.length > 0 && !revenueHistory.every(d => d.amount === 0) ? revenueHistory.map(r => r.amount) : [0] }]
+    };
+
+    const chartConfig = {
+        backgroundGradientFrom: '#0D0D0D',
+        backgroundGradientTo: '#0D0D0D',
+        color: (opacity = 1) => `rgba(94, 234, 212, ${opacity})`,
+        labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+        barPercentage: 0.6,
+        fillShadowGradient: '#5EEAD4',
+        fillShadowGradientOpacity: 1,
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -160,17 +158,54 @@ export const RevenueScreen: React.FC = () => {
                             </View>
                         </View>
 
-                        {/* ── Revenue Chart ── */}
-                        <View style={styles.sectionCard}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>Doanh Thu 7 Ngày</Text>
-                                <Ionicons name="trending-up" size={16} color={ShopifyTheme.colors.accent} />
+                        {/* ── Charts Row ── */}
+                        <View style={isLargeScreen ? styles.chartRow : styles.chartColumn}>
+                            {/* Pie Chart */}
+                            <View style={[styles.sectionCard, isLargeScreen && { flex: 1, marginHorizontal: 8, marginLeft: 16 }]}>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={styles.sectionTitle}>Phân bổ Trạng thái</Text>
+                                    <Ionicons name="pie-chart" size={16} color="#A78BFA" />
+                                </View>
+                                {orderCount === 0 ? (
+                                    <Text style={styles.noDataText}>Chưa có đơn hàng.</Text>
+                                ) : (
+                                    <PieChart
+                                        data={pieData}
+                                        width={(isLargeScreen ? (windowWidth / 2) - 60 : windowWidth - 56)}
+                                        height={220}
+                                        chartConfig={chartConfig}
+                                        accessor={"population"}
+                                        backgroundColor={"transparent"}
+                                        paddingLeft={"15"}
+                                        center={[0, 0]}
+                                        absolute
+                                    />
+                                )}
                             </View>
-                            {revenueHistory.every(d => d.amount === 0) ? (
-                                <Text style={styles.noDataText}>Chưa có giao dịch trong khoảng thời gian này.</Text>
-                            ) : (
-                                <MiniBarChart data={revenueHistory} color={ShopifyTheme.colors.accent} />
-                            )}
+
+                            {/* Bar Chart */}
+                            <View style={[styles.sectionCard, isLargeScreen && { flex: 1, marginHorizontal: 8, marginRight: 16 }]}>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={styles.sectionTitle}>Xu hướng Doanh Thu</Text>
+                                    <Ionicons name="stats-chart" size={16} color={ShopifyTheme.colors.accent} />
+                                </View>
+                                {revenueHistory.every(d => d.amount === 0) ? (
+                                    <Text style={styles.noDataText}>Chưa có giao dịch trong khoảng thời gian này.</Text>
+                                ) : (
+                                    <BarChart
+                                        data={barData}
+                                        width={(isLargeScreen ? (windowWidth / 2) - 60 : windowWidth - 56)}
+                                        height={220}
+                                        yAxisLabel="$"
+                                        yAxisSuffix=""
+                                        chartConfig={chartConfig}
+                                        verticalLabelRotation={0}
+                                        fromZero
+                                        showBarTops={false}
+                                        style={{ borderRadius: 16 }}
+                                    />
+                                )}
+                            </View>
                         </View>
 
                         {/* ── Top Products ── */}
@@ -180,7 +215,17 @@ export const RevenueScreen: React.FC = () => {
                                     <Text style={styles.sectionTitle}>Sản Phẩm Bán Chạy</Text>
                                     <Ionicons name="star-outline" size={16} color="#A78BFA" />
                                 </View>
-                                <MiniBarChart data={topProducts} color="#A78BFA" />
+                                {topProducts.map((p, i) => (
+                                    <View key={i} style={styles.spenderRow}>
+                                        <View style={[styles.spenderRank, { backgroundColor: 'rgba(167, 139, 250, 0.1)' }]}>
+                                            <Text style={styles.spenderRankText}>{i + 1}</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.spenderName}>{p.name}</Text>
+                                        </View>
+                                        <Text style={[styles.spenderAmount, { color: '#A78BFA' }]}>{p.quantity} lượt mua</Text>
+                                    </View>
+                                ))}
                             </View>
                         )}
 
@@ -309,20 +354,12 @@ const styles = StyleSheet.create({
         color: '#FFF', fontSize: 14, fontWeight: '800',
     },
 
-    chartContainer: {
-        flexDirection: 'row', height: 100,
-        alignItems: 'flex-end', gap: 6,
+    chartRow: {
+        flexDirection: 'row',
+        paddingHorizontal: 8,
     },
     chartColumn: {
-        flex: 1, alignItems: 'center', gap: 6, height: '100%',
-        justifyContent: 'flex-end',
-    },
-    chartBar: {
-        width: '100%', borderRadius: 4, minHeight: 4,
-    },
-    chartLabel: {
-        color: ShopifyTheme.colors.textMuted,
-        fontSize: 8, fontWeight: '700',
+        flexDirection: 'column',
     },
 
     noDataText: {

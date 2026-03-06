@@ -4,7 +4,9 @@ import {
     ScrollView, Alert, StatusBar, Platform, Modal
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigation } from '@react-navigation/native';
+import { useOrder } from '../../context/OrderContext';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { RootStackParamList } from '../../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { ShopifyTheme } from '../../theme/ShopifyTheme';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -12,31 +14,23 @@ import Toast from 'react-native-toast-message';
 
 export const ProfileScreen: React.FC = () => {
     const { user, logout, isAdmin } = useAuth();
-    const navigation = useNavigation();
+    const { orders, stats: systemStats } = useOrder();
+    const navigation = useNavigation<NavigationProp<RootStackParamList>>();
     const db = useSQLiteContext();
-    const [stats, setStats] = useState({ orders: 0, spent: 0 });
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [dbInfo, setDbInfo] = useState({ size: '0 KB', tables: 0 });
 
     useEffect(() => {
-        if (user) {
-            loadUserStats();
-            if (isAdmin) loadSystemStats();
+        if (user && isAdmin) {
+            loadSystemStats();
         }
-    }, [user]);
+    }, [user, isAdmin]);
 
-    const loadUserStats = async () => {
-        if (!user) return;
-        try {
-            const result = await db.getFirstAsync<{ count: number; total: number }>(
-                'SELECT COUNT(*) as count, COALESCE(SUM(totalAmount),0) as total FROM Orders WHERE userId = ?',
-                [user.id]
-            );
-            setStats({ orders: result?.count ?? 0, spent: result?.total ?? 0 });
-        } catch (e) {
-            console.error('loadUserStats error:', e);
-        }
-    };
+    const adminOrders = systemStats?.orderCount ?? 0;
+    const adminRevenue = systemStats?.totalRevenue ?? 0;
+
+    const userOrders = orders.length;
+    const userSpent = orders.reduce((acc, order) => acc + order.totalAmount, 0);
 
     const loadSystemStats = async () => {
         try {
@@ -60,10 +54,11 @@ export const ProfileScreen: React.FC = () => {
 
     const handleUtilityAction = (title: string) => {
         if (title === 'Lịch sử mua hàng') {
-            navigation.navigate('OrderHistory' as any);
+            navigation.navigate('OrderHistory');
         } else if (title === 'Quản lý thành viên') {
-            navigation.navigate('AdminTabs', { screen: 'Users' } as any);
+            navigation.navigate('AdminTabs', { screen: 'Users' });
         } else {
+
             Toast.show({ type: 'info', text1: 'Tính năng đang phát triển', text2: title });
         }
     };
@@ -92,15 +87,31 @@ export const ProfileScreen: React.FC = () => {
                     </View>
 
                     <View style={styles.statsRow}>
-                        <View style={styles.statBox}>
-                            <Text style={styles.statVal}>{stats.orders}</Text>
-                            <Text style={styles.statLab}>ĐƠN HÀNG</Text>
-                        </View>
-                        <View style={styles.statBoxDivider} />
-                        <View style={styles.statBox}>
-                            <Text style={styles.statVal}>${stats.spent.toFixed(2)}</Text>
-                            <Text style={styles.statLab}>TỔNG CHI</Text>
-                        </View>
+                        {isAdmin ? (
+                            <>
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statVal}>{adminOrders}</Text>
+                                    <Text style={styles.statLab}>ĐƠN HÀNG</Text>
+                                </View>
+                                <View style={styles.statBoxDivider} />
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statVal}>${adminRevenue.toFixed(2)}</Text>
+                                    <Text style={styles.statLab}>TỔNG DOANH THU</Text>
+                                </View>
+                            </>
+                        ) : (
+                            <>
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statVal}>{userOrders}</Text>
+                                    <Text style={styles.statLab}>ĐƠN HÀNG</Text>
+                                </View>
+                                <View style={styles.statBoxDivider} />
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statVal}>${userSpent.toFixed(2)}</Text>
+                                    <Text style={styles.statLab}>TỔNG CHI</Text>
+                                </View>
+                            </>
+                        )}
                     </View>
 
                     <View style={styles.menuSection}>

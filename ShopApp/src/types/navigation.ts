@@ -1,4 +1,5 @@
 import { Product } from './index';
+import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AuthStackParamList = {
     Login: undefined;
@@ -9,23 +10,23 @@ export type AuthStackParamList = {
 export type CustomerTabParamList = {
     Store: undefined;
     Cart: undefined;
-    Orders: undefined;
     Account: undefined;
 };
 
 // Admin tab navigation
 export type AdminTabParamList = {
-    Dashboard: undefined;
-    Products: undefined;
-    Customers: undefined;
-    Analytics: undefined;
+    System: undefined;
+    Inventory: undefined;
+    Logistics: undefined;
+    Users: undefined;
+    Admin: undefined;
 };
 
 export type RootStackParamList = {
     Auth: undefined;
     Landing: undefined;
-    CustomerTabs: undefined;
-    AdminTabs: undefined;
+    CustomerTabs: NavigatorScreenParams<CustomerTabParamList>;
+    AdminTabs: NavigatorScreenParams<AdminTabParamList>;
     ProductDetail: { product: Product };
     ProductForm: { product?: Product };
     AdminProductList: undefined;

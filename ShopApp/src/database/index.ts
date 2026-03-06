@@ -172,6 +172,7 @@ export async function initDatabase(db: SQLiteDatabase) {
                 ('Cursor Pro', 'Công cụ lập trình tích hợp AI hàng đầu cho dev.', 20.00, 'https://raw.githubusercontent.com/getcursor/cursor/main/assets/icon.png', 'Pro'),
                 ('GitHub Copilot', 'Trợ lý thông minh cho mọi dòng code.', 10.00, 'https://brandlogos.net/wp-content/uploads/2025/06/github_copilot_icon-logo_brandlogos.net_jxl0m-300x249.png', 'Basic'),
                 ('Midjourney Pro', 'Sáng tạo hình ảnh nghệ thuật không giới hạn.', 30.00, 'https://www.fredzone.org/wp-content/uploads/2023/03/R-1.png', 'Premium');
+                ('Antigravity Pro', 'Công cụ lập trình tích hợp AI (Multil Model).', 30.00, 'https://antigravity.google/assets/image/antigravity-logo.png', 'Pro');
             `);
         }
 
