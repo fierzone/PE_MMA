@@ -6,49 +6,67 @@ import { ShopifyTheme } from '../theme/ShopifyTheme';
 
 interface CartItemProps {
     item: CartItemDetailed;
-    onUpdateQuantity: (id: number, qty: number) => void;
+    onUpdateQuantity: (id: number, change: number) => void;
     onRemove: (id: number) => void;
 }
 
 export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRemove }) => {
-    const lineTotal = item.product.price * item.quantity;
+    // Local state for immediate UI feedback (realtime)
+    const [optimisticQty, setOptimisticQty] = React.useState(item.quantity);
+
+    // Sync when context updates (if it catches up or on full reload)
+    React.useEffect(() => {
+        setOptimisticQty(item.quantity);
+    }, [item.quantity]);
+
+    const lineTotal = item.product.price * optimisticQty;
+
+    const handleAdd = () => {
+        setOptimisticQty(q => q + 1);
+        onUpdateQuantity(item.id, 1);
+    };
+
+    const handleSub = () => {
+        if (optimisticQty > 1) {
+            setOptimisticQty(q => q - 1);
+            onUpdateQuantity(item.id, -1);
+        } else {
+            onRemove(item.id);
+        }
+    };
 
     return (
-        <View style={styles.row}>
-            {/* Thumbnail */}
-            <View style={styles.thumb}>
-                <Image source={{ uri: item.product.image }} style={styles.thumbImage} resizeMode="contain" />
-            </View>
-
-            {/* Middle content */}
-            <View style={styles.content}>
-                <Text style={styles.name} numberOfLines={1}>{item.product.name}</Text>
-                <Text style={styles.unitPrice}>${item.product.price.toFixed(2)} / bản quyền</Text>
-                <TouchableOpacity onPress={() => onRemove(item.id)}>
-                    <Text style={styles.removeText}>LOẠI BỎ</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Right: total + qty stepper */}
-            <View style={styles.rightCol}>
-                <Text style={styles.lineTotal}>${lineTotal.toFixed(2)}</Text>
-                <View style={styles.stepper}>
-                    <TouchableOpacity
-                        style={styles.stepBtn}
-                        onPress={() => {
-                            if (item.quantity > 1) onUpdateQuantity(item.id, item.quantity - 1);
-                            else onRemove(item.id);
-                        }}
-                    >
-                        <Ionicons name="remove" size={12} color="#FFF" />
+        <View style={styles.card}>
+            {/* Top row: Image & Info */}
+            <View style={styles.topRow}>
+                <View style={styles.thumb}>
+                    <Image source={{ uri: item.product.image }} style={styles.thumbImage} resizeMode="contain" />
+                </View>
+                <View style={styles.content}>
+                    <Text style={styles.name} numberOfLines={1}>{item.product.name}</Text>
+                    <Text style={styles.unitPrice}>${item.product.price.toFixed(2)} / bản quyền</Text>
+                    <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(item.id)}>
+                        <Ionicons name="trash-outline" size={14} color="#FF453A" />
+                        <Text style={styles.removeText}>XÓA</Text>
                     </TouchableOpacity>
-                    <Text style={styles.qty}>{item.quantity}</Text>
-                    <TouchableOpacity
-                        style={styles.stepBtn}
-                        onPress={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                    >
+                </View>
+                {/* Stepper on top right optionally, or bottom */}
+            </View>
+
+            {/* Bottom row: Stepper & Total */}
+            <View style={styles.bottomRow}>
+                <View style={styles.stepper}>
+                    <TouchableOpacity style={styles.stepBtn} onPress={handleSub}>
+                        <Ionicons name="remove" size={12} color={optimisticQty > 1 ? "#FFF" : "#FF453A"} />
+                    </TouchableOpacity>
+                    <Text style={styles.qty}>{optimisticQty}</Text>
+                    <TouchableOpacity style={styles.stepBtn} onPress={handleAdd}>
                         <Ionicons name="add" size={12} color="#FFF" />
                     </TouchableOpacity>
+                </View>
+                <View style={styles.totalBox}>
+                    <Text style={styles.totalLabel}>TỔNG</Text>
+                    <Text style={styles.lineTotal}>${lineTotal.toFixed(2)}</Text>
                 </View>
             </View>
         </View>
@@ -56,13 +74,27 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
 };
 
 const styles = StyleSheet.create({
-    row: {
+    card: {
+        backgroundColor: '#0A0A0A',
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    topRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 24,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.05)',
         gap: 16,
+    },
+    bottomRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 20,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.05)',
     },
     thumb: {
         width: 80,
@@ -94,19 +126,30 @@ const styles = StyleSheet.create({
         color: ShopifyTheme.colors.textMuted,
         fontWeight: '500',
     },
+    removeBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 8,
+    },
     removeText: {
         fontSize: 10,
         color: '#FF453A',
         fontWeight: '900',
         letterSpacing: 1,
-        marginTop: 8,
     },
-    rightCol: {
+    totalBox: {
         alignItems: 'flex-end',
-        gap: 12,
+    },
+    totalLabel: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: ShopifyTheme.colors.textMuted,
+        letterSpacing: 2,
+        marginBottom: 4,
     },
     lineTotal: {
-        fontSize: 16,
+        fontSize: 20,
         fontWeight: '900',
         color: ShopifyTheme.colors.accent,
     },
